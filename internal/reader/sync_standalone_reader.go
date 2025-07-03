@@ -519,6 +519,10 @@ func (r *syncStandaloneReader) sendAOF(offset int64) {
 		if strings.EqualFold(argv[0], "opinfo") {
 			continue
 		}
+		// ARS @Aliyun
+		if strings.EqualFold(argv[0], "ARS") {
+			argv = argv[2:] // ARS command is not needed
+		}
 		// txn
 		if strings.EqualFold(argv[0], "multi") || strings.EqualFold(argv[0], "exec") {
 			continue
