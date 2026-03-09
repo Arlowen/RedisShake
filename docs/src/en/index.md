@@ -12,6 +12,9 @@ hero:
         -   theme: alt
             text: What is RedisShake
             link: /en/guide/introduction
+        -   theme: alt
+            text: Find by Task
+            link: /en/guide/task-map
 features:
     -   title: Data Migration
         details: Supports sync, scan, and restore modes for data migration
@@ -20,4 +23,3 @@ features:
     -   title: Compatibility
         details: Compatible with various Redis deployment forms and mainstream cloud vendor's Redis-like databases
 ---
-

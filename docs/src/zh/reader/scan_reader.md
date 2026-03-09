@@ -8,6 +8,12 @@ outline: deep
 `scan_reader` 的性能与数据一致性均不如 [`sync_reader`](sync_reader.md)，应尽可能选择 `sync_reader`。
 :::
 
+## 补充说明
+
+* `scan_reader` 不只是全量同步，也可以通过 `ksn` 接收增量变更。
+* `ksn` 不是等 SCAN 结束后才开始，它和 SCAN 是同时进行的。
+* 过滤规则决定哪些数据会写入目标端，但不会改变 SCAN 阶段仍然需要遍历源端 keyspace 这一点。
+
 ## 原理介绍
 
 Scan Reader 有 SCAN 和 KSN 两个阶段，SCAN 阶段是全量同步，KSN 阶段是增量同步。
@@ -28,6 +34,7 @@ Scan Reader 有 SCAN 和 KSN 两个阶段，SCAN 阶段是全量同步，KSN 阶
 1. Redis 在默认情况下不会开启 `notify-keyspace-events` 配置，需要手动开启，保证值中含有 `AE`。
 2. 如果在 KSN 阶段出现源端将连接断开，考虑适当调高 `client-output-buffer-limit pubsub` 的值。[802](https://github.com/tair-opensource/RedisShake/issues/802)
 3. `Redis keyspace notifications` 不会感知到 `FLUSHALL` 与 `FLUSHDB` 命令，因此在使用 `ksn` 参数时，需要确保源端数据库不会执行这两个命令。
+4. 如果增量看起来很慢，或者像是没有生效，需要先确认源端本身是否真的正确开启并能够发送 keyspace notifications。
 
 
 ### 性能影响

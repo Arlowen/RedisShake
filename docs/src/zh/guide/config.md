@@ -38,6 +38,7 @@ RedisShake 提供了不同的 Reader 用来对接不同的源端，配置详见 
 RedisShake 提供了不同的 Writer 用来对接不同的目标端，配置详见 Writer 章节：
 
 * [Redis Writer](../writer/redis_writer.md)
+* [File Writer](../writer/file_writer.md)
 
 ## filter 配置
 

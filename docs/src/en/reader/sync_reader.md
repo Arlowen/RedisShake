@@ -13,6 +13,12 @@ Advantages: Best data consistency, minimal impact on the source database, and al
 
 Principle: RedisShake simulates a Slave connecting to the Master node, and the Master will send data to RedisShake, which includes both full and incremental parts. The full data is an RDB file, and the incremental data is an AOF data stream. RedisShake will accept both full and incremental data and temporarily store them on the hard disk. During the full synchronization phase, RedisShake first parses the RDB file into individual Redis commands, then sends these commands to the destination. During the incremental synchronization phase, RedisShake continues to synchronize the AOF data stream to the destination.
 
+## Common Notes
+
+* `sync_reader` is usually the best choice when the source supports replication access.
+* Whether PSync is available depends on the actual product edition and permissions. This is especially important for managed services.
+* `sync_rdb = false` means RedisShake will not apply the snapshot to the destination. It may still need to receive the snapshot from the source because that is how the replication protocol works.
+
 ## Configuration
 
 ```toml

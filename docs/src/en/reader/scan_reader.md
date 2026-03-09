@@ -8,6 +8,12 @@ outline: deep
 The performance and data consistency of `scan_reader` are not as good as [`sync_reader`](sync_reader.md). You should choose `sync_reader` whenever possible.
 :::
 
+## Quick Notes
+
+* `scan_reader` is not full-sync only. It can also receive incremental updates through `ksn`.
+* `ksn` does not wait for SCAN to finish. The two stages run together.
+* Filter rules control what gets written to the destination. They do not change the fact that the SCAN stage still needs to walk the source keyspace.
+
 ## Principle Introduction
 
 Scan Reader has two stages: SCAN and KSN. The SCAN stage is for full synchronization, while the KSN stage is for incremental synchronization.
@@ -27,6 +33,7 @@ Scan Reader has two stages: SCAN and KSN. The SCAN stage is for full synchroniza
 1. Redis does not enable the `notify-keyspace-events` configuration by default. It needs to be manually enabled, ensuring the value contains `AE`.
 2. If the source disconnects during the KSN stage, consider appropriately increasing the value of `client-output-buffer-limit pubsub`. [802](https://github.com/tair-opensource/RedisShake/issues/802)
 3. `Redis keyspace notifications` will not detect `FLUSHALL` and `FLUSHDB` commands, so when using the `ksn` parameter, ensure that the source database does not execute these two commands.
+4. If incremental updates seem delayed or missing, verify that the source itself can emit and deliver keyspace notifications as expected.
 
 ### Performance Impact
 

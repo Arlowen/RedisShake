@@ -36,6 +36,7 @@ RedisShake provides different Readers to interface with different sources, see t
 RedisShake provides different Writers to interface with different targets, see the Writer section for configuration details:
 
 * [Redis Writer](../writer/redis_writer.md)
+* [File Writer](../writer/file_writer.md)
 
 ## filter Configuration
 

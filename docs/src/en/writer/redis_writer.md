@@ -25,7 +25,8 @@ tls = false
 
 Important notes:
 1. When the destination is a cluster, ensure that the commands from the source satisfy the [requirement that keys' hash values belong to the same slot](https://redis.io/docs/reference/cluster-spec/#implemented-subset).
-2. It's recommended to ensure that the destination version is greater than or equal to the source version, otherwise unsupported commands may occur. If a lower version is necessary, you can set `target_redis_proto_max_bulk_len` to 0 to avoid using the `restore` command for data recovery.
+2. Redis cluster only supports `db 0`. If the source has multiple DBs, filter or rewrite them before writing.
+3. It's recommended to ensure that the destination version is greater than or equal to the source version, otherwise unsupported commands may occur. If a lower version is necessary, you can set `target_redis_proto_max_bulk_len` to 0 to avoid using the `restore` command for data recovery.
 
 ## Duplicate Key Handling
 
@@ -58,6 +59,3 @@ rdb_restore_command_behavior = "panic"  # panic, rewrite, or skip
 ### Limitation
 
 When data size exceeds `target_redis_proto_max_bulk_len`, individual commands (SET, HSET, etc.) are used instead of RESTORE, and this configuration may not be respected.
-
-
-

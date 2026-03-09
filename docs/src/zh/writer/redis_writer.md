@@ -25,7 +25,8 @@ tls = false
 
 注意事项：
 1. 当目的端为集群时，应保证源端发过来的命令满足 [Key 的哈希值属于同一个 slot](https://redis.io/docs/reference/cluster-spec/#implemented-subset)。
-2. 应尽量保证目的端版本大于等于源端版本，否则可能会出现不支持的命令。如确实需要降低版本，可以设置 `target_redis_proto_max_bulk_len` 为 0，来避免使用 `restore` 命令恢复数据。
+2. Redis Cluster 只支持 `db 0`。如果源端有多个 DB，需要在写入前先过滤或改写。
+3. 应尽量保证目的端版本大于等于源端版本，否则可能会出现不支持的命令。如确实需要降低版本，可以设置 `target_redis_proto_max_bulk_len` 为 0，来避免使用 `restore` 命令恢复数据。
 
 ## 重复 Key 处理
 

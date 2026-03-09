@@ -83,7 +83,7 @@ block_key_prefix = ["temp:", "cache:"]
 ./redis-shake shake.toml
 ```
 
-For more help, check the [docs](https://tair-opensource.github.io/RedisShake/zh/guide/mode.html).
+For task-oriented docs, see [English](https://tair-opensource.github.io/RedisShake/en/guide/task-map.html), [中文](https://tair-opensource.github.io/RedisShake/zh/guide/task-map.html), or the [full docs](https://tair-opensource.github.io/RedisShake/).
 
 ## Limitations
 

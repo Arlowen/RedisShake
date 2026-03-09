@@ -27,6 +27,7 @@ function sidebar(): DefaultTheme.SidebarItem[] {
             items: [
                 { text: '什么是 RedisShake', link: '/zh/guide/introduction' },
                 { text: '快速上手', link: '/zh/guide/getting-started' },
+                { text: '按任务查找', link: '/zh/guide/task-map' },
                 { text: '配置', link: '/zh/guide/config' },
                 { text: '迁移模式选择', link: '/zh/guide/mode' },
                 { text: '架构与性能说明', link: '/zh/guide/architecture' },
@@ -38,12 +39,14 @@ function sidebar(): DefaultTheme.SidebarItem[] {
                 { text: 'Sync Reader', link: '/zh/reader/sync_reader' },
                 { text: 'Scan Reader', link: '/zh/reader/scan_reader' },
                 { text: 'RDB Reader', link: '/zh/reader/rdb_reader' },
+                { text: 'AOF Reader', link: '/zh/reader/aof_reader' },
             ]
         },
         {
             text: 'Writer',
             items: [
                 { text: 'Redis Writer', link: '/zh/writer/redis_writer' },
+                { text: 'File Writer', link: '/zh/writer/file_writer' },
             ]
         },
         {

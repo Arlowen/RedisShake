@@ -165,6 +165,19 @@ shake.call(DB, ARGV)
 
 效果是将源端的 key `prefix_old_key` 写入到目标端的 key `prefix_new_key`。
 
+### 将源端 `db 0` 写入目标端 `db 5`
+
+```lua
+if DB == 0 then
+  shake.call(5, ARGV)
+  return
+end
+
+shake.call(DB, ARGV)
+```
+
+当目标端是 standalone 时，这段脚本会把源端 `db 0` 写入目标端 `db 5`。
+
 ### 交换 DB
 
 ```lua

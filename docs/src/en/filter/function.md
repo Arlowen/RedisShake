@@ -165,6 +165,19 @@ shake.call(DB, ARGV)
 
 The effect is to write the source key `prefix_old_key` to the destination key `prefix_new_key`.
 
+### Writing Source `db 0` into Destination `db 5`
+
+```lua
+if DB == 0 then
+  shake.call(5, ARGV)
+  return
+end
+
+shake.call(DB, ARGV)
+```
+
+For a standalone target, this writes source `db 0` into destination `db 5`.
+
 ### Swapping DBs
 
 ```lua

@@ -29,6 +29,7 @@ function sidebar(): DefaultTheme.SidebarItem[] {
             items: [
                 { text: 'What is RedisShake', link: '/en/guide/introduction' },
                 { text: 'Getting Started', link: '/en/guide/getting-started' },
+                { text: 'Find by Task', link: '/en/guide/task-map' },
                 { text: 'Configuration', link: '/en/guide/config' },
                 { text: 'Migration Mode Selection', link: '/en/guide/mode' },
                 { text: 'Architecture and Performance', link: '/en/guide/architecture' },
@@ -40,12 +41,14 @@ function sidebar(): DefaultTheme.SidebarItem[] {
                 { text: 'Sync Reader', link: '/en/reader/sync_reader' },
                 { text: 'Scan Reader', link: '/en/reader/scan_reader' },
                 { text: 'RDB Reader', link: '/en/reader/rdb_reader' },
+                { text: 'AOF Reader', link: '/en/reader/aof_reader' },
             ]
         },
         {
             text: 'Writer',
             items: [
                 { text: 'Redis Writer', link: '/en/writer/redis_writer' },
+                { text: 'File Writer', link: '/en/writer/file_writer' },
             ]
         },
         {

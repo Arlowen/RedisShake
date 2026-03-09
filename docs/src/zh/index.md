@@ -12,6 +12,9 @@ hero:
         -   theme: alt
             text: 什么是 RedisShake
             link: /zh/guide/introduction
+        -   theme: alt
+            text: 按任务查找
+            link: /zh/guide/task-map
 features:
     -   icon: ☁️
         title: 云厂商兼容性
@@ -23,4 +26,3 @@ features:
         title: 增量同步
         details: 支持实时增量数据同步，用于不停机迁移
 ---
-
