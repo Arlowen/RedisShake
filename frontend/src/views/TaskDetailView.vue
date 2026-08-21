@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
-import { PhArrowLeft, PhArrowsClockwise, PhFileText, PhPlay, PhStop, PhWarning } from '@phosphor-icons/vue'
+import { PhArrowLeft, PhArrowsClockwise, PhDownloadSimple, PhFileText, PhPause, PhPlay, PhStop, PhWarning } from '@phosphor-icons/vue'
 
 import { api } from '@/api/client'
 import type { Run, Task } from '@/api/types'
@@ -23,12 +23,24 @@ const actionLoading = ref(false)
 const logs = ref('')
 const logOffset = ref(0)
 const logsLoading = ref(false)
+const logPaused = ref(false)
+const logQuery = ref('')
+const logLevel = ref<'all' | 'info' | 'warn' | 'error'>('all')
 let eventSource: EventSource | undefined
 let logTimer: ReturnType<typeof setInterval> | undefined
 
 const selectedRun = computed(() => runs.value.find((run) => run.id === selectedRunId.value) ?? runs.value[0])
 const active = computed(() => selectedRun.value && ['STARTING', 'RUNNING', 'STOPPING'].includes(selectedRun.value.state))
 const metrics = computed(() => selectedRun.value?.status?.total_entries_count)
+const filteredLogs = computed(() => logs.value.split('\n').filter((line) => {
+  const normalized = line.toLowerCase()
+  const matchesQuery = !logQuery.value || normalized.includes(logQuery.value.toLowerCase())
+  const matchesLevel = logLevel.value === 'all'
+    || (logLevel.value === 'info' && /\b(inf|info)\b/i.test(line))
+    || (logLevel.value === 'warn' && /\b(wrn|warn|warning)\b/i.test(line))
+    || (logLevel.value === 'error' && /\b(err|error|panic|fatal)\b/i.test(line))
+  return matchesQuery && matchesLevel
+}).join('\n'))
 
 onMounted(load)
 onBeforeUnmount(cleanupStreams)
@@ -64,7 +76,7 @@ function connectStreams() {
       if (index >= 0) runs.value.splice(index, 1, updated)
       if (!['STARTING', 'RUNNING', 'STOPPING'].includes(updated.state)) cleanupStreams()
     })
-    logTimer = setInterval(() => void loadMoreLogs(), 1600)
+    logTimer = setInterval(() => { if (!logPaused.value) void loadMoreLogs() }, 1600)
   }
   void loadMoreLogs()
 }
@@ -82,6 +94,17 @@ async function loadMoreLogs() {
 }
 
 function stripAnsi(value: string) { return value.replace(/\u001b\[[0-9;]*m/g, '') }
+
+function downloadLogs() {
+  if (!logs.value) return
+  const blob = new Blob([logs.value], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${task.value?.spec.name ?? 'redisshake'}-${selectedRun.value?.id.slice(0, 10) ?? 'run'}.log`
+  link.click()
+  URL.revokeObjectURL(url)
+}
 
 async function start() {
   if (!task.value) return
@@ -166,8 +189,8 @@ function confirmStop(force = false) {
           </div>
         </a-tab-pane>
         <a-tab-pane key="logs" tab="运行日志">
-          <div class="log-toolbar"><span><PhFileText :size="17" />stdout / stderr（已脱敏）</span><a-button size="small" @click="loadMoreLogs">读取新增日志</a-button></div>
-          <pre class="log-view">{{ logs || '等待日志输出…' }}</pre>
+          <div class="log-toolbar"><span><PhFileText :size="17" />stdout / stderr（已脱敏）</span><div class="log-actions"><a-input v-model:value="logQuery" allow-clear size="small" placeholder="搜索日志" /><a-select v-model:value="logLevel" size="small" :options="[{label:'全部级别',value:'all'},{label:'Info',value:'info'},{label:'Warn',value:'warn'},{label:'Error',value:'error'}]" /><a-button size="small" @click="logPaused=!logPaused"><template #icon><PhPlay v-if="logPaused" :size="15" /><PhPause v-else :size="15" /></template>{{ logPaused ? '继续' : '暂停' }}</a-button><a-button size="small" @click="downloadLogs"><template #icon><PhDownloadSimple :size="15" /></template>下载</a-button></div></div>
+          <pre class="log-view">{{ filteredLogs || (logs ? '没有匹配的日志' : '等待日志输出…') }}</pre>
         </a-tab-pane>
         <a-tab-pane key="history" tab="运行历史">
           <div class="data-surface history-table"><div v-for="run in runs" :key="run.id" class="data-row history-row"><StatusPill :label="runStateMeta[run.state].label" :tone="runStateMeta[run.state].tone" /><span class="mono">{{ run.id }}</span><span>{{ formatDate(run.started_at) }}</span><span>{{ run.exit_reason || '—' }}</span></div></div>
@@ -182,5 +205,5 @@ function confirmStop(force = false) {
 </template>
 
 <style scoped>
-.back-link{display:flex;align-items:center;gap:6px;margin:0 0 22px;padding:0;color:var(--muted);font-size:12px;background:none;border:0;cursor:pointer}.detail-status-line{display:flex;align-items:center;gap:9px;margin:-12px 0 22px;color:var(--muted);font-size:11px}.detail-page :deep(.ant-alert){margin-bottom:18px}.detail-tabs{margin-top:24px}.overview-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(250px,.55fr);gap:30px}.status-json-grid{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.status-json-grid>div{padding:16px;border-right:1px solid var(--line)}.status-json-grid>div:last-child{border-right:0}.status-json-grid small,.status-json-grid strong{display:block}.status-json-grid small{color:var(--muted)}.status-json-grid strong{margin-top:7px;font-size:13px}.json-view,.log-view{margin:0;padding:18px;overflow:auto;color:#d6e2dd;background:#1d2926;border-radius:12px;font:11px/1.65 'Geist Mono',ui-monospace,monospace;white-space:pre-wrap}.json-view{max-height:430px}.run-selector{padding-left:24px;border-left:1px solid var(--line)}.run-selector>button{width:100%;display:grid;grid-template-columns:auto 1fr;gap:7px 10px;padding:13px 0;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);cursor:pointer}.run-selector>button.selected{color:var(--accent)}.run-selector strong{font-size:11px}.run-selector small{grid-column:2;color:var(--muted);font-size:9px}.log-toolbar{display:flex;align-items:center;justify-content:space-between;padding:10px 0}.log-toolbar>span{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11px}.log-view{min-height:420px;max-height:65vh}.history-row{grid-template-columns:110px 1fr .7fr 1fr;font-size:11px}.config-note{display:flex;gap:8px;align-items:center;margin-bottom:12px;color:var(--warning);font-size:11px}@media(max-width:900px){.overview-grid{grid-template-columns:1fr}.run-selector{padding-left:0;border-left:0}.status-json-grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.detail-metrics{grid-template-columns:1fr 1fr}.history-row{grid-template-columns:90px 1fr}.history-row>span:nth-child(n+3){display:none}}
+.back-link{display:flex;align-items:center;gap:6px;margin:0 0 22px;padding:0;color:var(--muted);font-size:12px;background:none;border:0;cursor:pointer}.detail-status-line{display:flex;align-items:center;gap:9px;margin:-12px 0 22px;color:var(--muted);font-size:11px}.detail-page :deep(.ant-alert){margin-bottom:18px}.detail-tabs{margin-top:24px}.overview-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(250px,.55fr);gap:30px}.status-json-grid{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.status-json-grid>div{padding:16px;border-right:1px solid var(--line)}.status-json-grid>div:last-child{border-right:0}.status-json-grid small,.status-json-grid strong{display:block}.status-json-grid small{color:var(--muted)}.status-json-grid strong{margin-top:7px;font-size:13px}.json-view,.log-view{margin:0;padding:18px;overflow:auto;color:#d6e2dd;background:#1d2926;border-radius:12px;font:11px/1.65 'Geist Mono',ui-monospace,monospace;white-space:pre-wrap}.json-view{max-height:430px}.run-selector{padding-left:24px;border-left:1px solid var(--line)}.run-selector>button{width:100%;display:grid;grid-template-columns:auto 1fr;gap:7px 10px;padding:13px 0;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);cursor:pointer}.run-selector>button.selected{color:var(--accent)}.run-selector strong{font-size:11px}.run-selector small{grid-column:2;color:var(--muted);font-size:9px}.log-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0}.log-toolbar>span{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11px}.log-actions{display:flex;align-items:center;gap:7px}.log-actions :deep(.ant-input-affix-wrapper){width:180px}.log-actions :deep(.ant-select){width:112px}.log-view{min-height:420px;max-height:65vh}.history-row{grid-template-columns:110px 1fr .7fr 1fr;font-size:11px}.config-note{display:flex;gap:8px;align-items:center;margin-bottom:12px;color:var(--warning);font-size:11px}@media(max-width:900px){.overview-grid{grid-template-columns:1fr}.run-selector{padding-left:0;border-left:0}.status-json-grid{grid-template-columns:1fr 1fr}.log-toolbar{align-items:flex-start;flex-direction:column}.log-actions{width:100%;flex-wrap:wrap}}@media(max-width:620px){.detail-metrics{grid-template-columns:1fr 1fr}.history-row{grid-template-columns:90px 1fr}.history-row>span:nth-child(n+3){display:none}.log-actions :deep(.ant-input-affix-wrapper){width:100%}}
 </style>

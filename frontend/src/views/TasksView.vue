@@ -22,13 +22,18 @@ const wizardOpen = ref(false)
 const editingTask = ref<Task>()
 const query = ref('')
 const stateFilter = ref<'all' | TaskState>('all')
+const sortOrder = ref<'updated' | 'name' | 'state'>('updated')
 const latestRuns = ref<Record<string, Run | undefined>>({})
 const startingId = ref<string>()
 
 const filtered = computed(() => store.items.filter((task) => {
   const matchesQuery = !query.value || task.spec.name.toLowerCase().includes(query.value.toLowerCase())
   return matchesQuery && (stateFilter.value === 'all' || task.state === stateFilter.value)
-}))
+}).sort((a, b) => sortOrder.value === 'name'
+  ? a.spec.name.localeCompare(b.spec.name)
+  : sortOrder.value === 'state'
+    ? a.state.localeCompare(b.state)
+    : b.updated_at.localeCompare(a.updated_at)))
 const runningCount = computed(() => Object.values(latestRuns.value).filter((run) => run && ['STARTING', 'RUNNING', 'STOPPING'].includes(run.state)).length)
 const readyCount = computed(() => store.items.filter((task) => task.state === 'READY').length)
 const totalWritten = computed(() => Object.values(latestRuns.value).reduce((total, run) => total + (run?.status?.total_entries_count?.write_count ?? 0), 0))
@@ -99,7 +104,7 @@ async function copy(task: Task) {
     <InlineError v-if="store.error" class="task-error" :message="store.error" @retry="load" />
     <div class="toolbar">
       <div class="toolbar-left search-box"><PhMagnifyingGlass :size="18" /><a-input v-model:value="query" :bordered="false" placeholder="搜索任务名称" /></div>
-      <div class="toolbar-right"><a-segmented v-model:value="stateFilter" :options="[{label:'全部',value:'all'},{label:'草稿',value:'DRAFT'},{label:'可启动',value:'READY'}]" /><a-button type="text" :loading="store.loading" @click="load"><template #icon><PhArrowsClockwise :size="17" /></template></a-button></div>
+      <div class="toolbar-right"><a-segmented v-model:value="stateFilter" :options="[{label:'全部',value:'all'},{label:'草稿',value:'DRAFT'},{label:'可启动',value:'READY'}]" /><a-select v-model:value="sortOrder" style="width:124px" :options="[{label:'最近更新',value:'updated'},{label:'任务名称',value:'name'},{label:'任务状态',value:'state'}]" /><a-button type="text" :loading="store.loading" @click="load"><template #icon><PhArrowsClockwise :size="17" /></template></a-button></div>
     </div>
 
     <div v-if="store.loading && !store.items.length" class="skeleton-list"><div v-for="i in 5" :key="i" class="skeleton-row" /></div>
