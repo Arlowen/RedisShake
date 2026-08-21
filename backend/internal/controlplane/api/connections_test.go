@@ -73,6 +73,11 @@ func TestConnectionCRUDNeverReturnsCredentials(t *testing.T) {
 		t.Fatalf("PATCH connection status = %d, body = %s", patchResponse.Code, patchResponse.Body.String())
 	}
 	assertNoCredentialLeak(t, patchResponse.Body.Bytes())
+	copyResponse := performJSONRequest(t, handler, http.MethodPost, "/api/v1/connections/"+created.ID+"/copy", `{"name":"Copied Redis"}`)
+	if copyResponse.Code != http.StatusCreated || !strings.Contains(copyResponse.Body.String(), "Copied Redis") {
+		t.Fatalf("POST connection copy status = %d, body = %s", copyResponse.Code, copyResponse.Body.String())
+	}
+	assertNoCredentialLeak(t, copyResponse.Body.Bytes())
 
 	deleteResponse := performJSONRequest(t, handler, http.MethodDelete, "/api/v1/connections/"+created.ID, "")
 	if deleteResponse.Code != http.StatusNoContent {

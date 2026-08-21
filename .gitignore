@@ -3,6 +3,7 @@
 __pycache__/
 .DS_Store
 node_modules/
+.env
 
 # compiled output or test output
 bin/
@@ -11,3 +12,5 @@ tmp/
 data/
 *.log
 coverage/
+playwright-report/
+test-results/

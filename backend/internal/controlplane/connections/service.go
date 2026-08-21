@@ -120,6 +120,22 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	return s.store.DeleteConnection(ctx, id)
 }
 
+func (s *Service) Copy(ctx context.Context, id, name string) (View, error) {
+	stored, err := s.store.GetConnection(ctx, id)
+	if err != nil {
+		return View{}, err
+	}
+	resolved, err := s.resolve(stored)
+	if err != nil {
+		return View{}, err
+	}
+	resolved.Name = strings.TrimSpace(name)
+	if resolved.Name == "" {
+		return View{}, &ValidationError{Field: "name", Message: "is required"}
+	}
+	return s.Create(ctx, resolved.Spec)
+}
+
 func (s *Service) TestUnsaved(ctx context.Context, input Spec, purpose TestPurpose) (TestResult, error) {
 	if s.checker == nil {
 		return TestResult{}, errors.New("Redis connection checker is not configured")

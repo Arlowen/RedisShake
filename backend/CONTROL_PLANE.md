@@ -54,6 +54,9 @@ Production containers should set `REDISSHAKE_DATA_DIR=/var/lib/redis-shake-ui` a
 | `REDISSHAKE_WORKER_PATH` | `./bin/redis-shake` | RedisShake worker binary; `--version` must return the RedisShake version banner |
 | `REDISSHAKE_RUN_START_TIMEOUT` | `15s` | Maximum wait for the worker status endpoint to become readable |
 | `REDISSHAKE_RUN_STOP_TIMEOUT` | `30s` | Graceful shutdown wait before the control plane force-terminates workers during its own shutdown |
+| `REDISSHAKE_WEB_DIR` | empty | Optional built SPA directory; when set, the control plane serves the Web console and client-side routes |
+| `REDISSHAKE_MAX_CONCURRENT_RUNS` | `4` | Global cap for STARTING, RUNNING, STOPPING, and UNKNOWN Runs |
+| `REDISSHAKE_LOG_RETENTION_DAYS` | `7` | Delete terminal Run artifact directories after this many days; `0` disables artifact cleanup |
 
 Generate the master key with a cryptographically secure tool and keep it outside the repository. For example, `openssl rand -base64 32` prints a suitable value. Back up the key separately from the SQLite database; encrypted connection passwords cannot be recovered without it.
 
@@ -127,3 +130,9 @@ Starting a READY task freezes a credential-free Task snapshot, allocates a loopb
 The status poller persists the last valid RedisShake JSON separately from process state. Three consecutive status failures mark status unhealthy without claiming that the process exited. Graceful stop sends `SIGTERM` to the process group; force stop is a separate endpoint. Logs are redacted before disk writes and again before API responses.
 
 At control-plane startup, persisted `STARTING`, `RUNNING`, or `STOPPING` rows for which in-memory ownership cannot be proven become `UNKNOWN`. Such a Run blocks duplicate task startup but cannot be signaled through the API, preventing PID reuse from killing an unrelated process.
+
+## Single-image deployment
+
+`backend/Dockerfile.web` builds the Vue application, RedisShake worker, and control-plane server, then copies only the compiled artifacts into a non-root Alpine runtime. The runtime serves `/app/web`, stores state under `/var/lib/redis-shake-ui`, and health-checks `/readyz`.
+
+Use `compose.yaml` for a persistent deployment or `deploy/compose.dev.yaml` for the browser-to-Redis demo matrix. The original `backend/Dockerfile` and CLI release archives remain unchanged.

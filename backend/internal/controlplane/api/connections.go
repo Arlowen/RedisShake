@@ -21,6 +21,10 @@ type unsavedConnectionTestRequest struct {
 	Purpose    connections.TestPurpose `json:"purpose"`
 }
 
+type copyRequest struct {
+	Name string `json:"name"`
+}
+
 func (s *Server) handleListConnections(w http.ResponseWriter, request *http.Request) {
 	items, err := s.connections.List(request.Context())
 	if err != nil {
@@ -101,6 +105,20 @@ func (s *Server) handleTestSavedConnection(w http.ResponseWriter, request *http.
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) handleCopyConnection(w http.ResponseWriter, request *http.Request) {
+	var input copyRequest
+	if err := decodeJSON(w, request, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", err.Error())
+		return
+	}
+	connection, err := s.connections.Copy(request.Context(), request.PathValue("id"), input.Name)
+	if err != nil {
+		s.writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, connection)
 }
 
 func (s *Server) writeServiceError(w http.ResponseWriter, err error) {

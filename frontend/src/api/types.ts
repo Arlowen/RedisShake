@@ -203,4 +203,7 @@ export interface SystemInfo {
   runtime_dir: string
   secrets_configured: boolean
   worker_path: string
+  web_ui_configured: boolean
+  max_concurrent_runs: number
+  log_retention_days: number
 }

@@ -44,11 +44,17 @@ export const useConnectionsStore = defineStore('connections', () => {
     items.value = items.value.filter((item) => item.id !== id)
   }
 
+  async function copy(connection: Connection) {
+    const copied = await api.copyConnection(connection.id, `${connection.name} 副本`)
+    items.value = [...items.value, copied].sort((a, b) => a.name.localeCompare(b.name))
+    return copied
+  }
+
   async function testSaved(id: string, purpose: TestPurpose): Promise<ConnectionTestResult> {
     const result = await api.testSavedConnection(id, purpose)
     await load(true)
     return result
   }
 
-  return { items, loading, loaded, error, selectable, load, create, update, remove, testSaved }
+  return { items, loading, loaded, error, selectable, load, create, update, remove, copy, testSaved }
 })

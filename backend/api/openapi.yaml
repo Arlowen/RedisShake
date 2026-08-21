@@ -194,6 +194,29 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/v1/connections/{id}/copy:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionID"
+    post:
+      operationId: copyConnection
+      summary: Copy a connection and re-encrypt its stored credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CopyRequest"
+      responses:
+        "201":
+          description: Connection copy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Connection"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/tasks:
     get:
       operationId: listTasks
@@ -322,6 +345,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/tasks/{id}/copy:
+    parameters:
+      - $ref: "#/components/parameters/TaskID"
+    post:
+      operationId: copyTask
+      summary: Copy a task as a new DRAFT at revision 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CopyRequest"
+      responses:
+        "201":
+          description: Task copy requiring a new precheck.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/tasks/{id}/runs:
     parameters:
       - $ref: "#/components/parameters/TaskID"
@@ -532,7 +578,7 @@ components:
           const: ok
     SystemInfo:
       type: object
-      required: [version, git_commit, storage, data_dir, runtime_dir, secrets_configured, worker_path]
+      required: [version, git_commit, storage, data_dir, runtime_dir, secrets_configured, worker_path, web_ui_configured, max_concurrent_runs, log_retention_days]
       properties:
         version:
           type: string
@@ -548,6 +594,14 @@ components:
           type: boolean
         worker_path:
           type: string
+        web_ui_configured:
+          type: boolean
+        max_concurrent_runs:
+          type: integer
+          minimum: 1
+        log_retention_days:
+          type: integer
+          minimum: 0
     Error:
       type: object
       required: [code, message]
@@ -564,6 +618,13 @@ components:
       properties:
         error:
           $ref: "#/components/schemas/Error"
+    CopyRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 128
     TLSInput:
       type: object
       properties:

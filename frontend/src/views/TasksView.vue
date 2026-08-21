@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
-import { PhArchive, PhArrowRight, PhArrowsClockwise, PhDotsThree, PhMagnifyingGlass, PhPlay, PhPlus } from '@phosphor-icons/vue'
+import { PhArchive, PhArrowRight, PhArrowsClockwise, PhCopy, PhDotsThree, PhMagnifyingGlass, PhPlay, PhPlus } from '@phosphor-icons/vue'
 
 import { api } from '@/api/client'
 import type { Run, Task, TaskState } from '@/api/types'
@@ -12,10 +12,12 @@ import PageHeader from '@/components/PageHeader.vue'
 import StatusPill from '@/components/StatusPill.vue'
 import TaskWizard from '@/components/TaskWizard.vue'
 import { useTasksStore } from '@/stores/tasks'
+import { useConnectionsStore } from '@/stores/connections'
 import { formatDate, formatNumber, modeLabel, runStateMeta, taskStateMeta } from '@/utils/presentation'
 
 const router = useRouter()
 const store = useTasksStore()
+const connectionsStore = useConnectionsStore()
 const wizardOpen = ref(false)
 const editingTask = ref<Task>()
 const query = ref('')
@@ -35,10 +37,15 @@ onMounted(() => load())
 
 async function load() {
   try {
-    await store.load()
+    await Promise.all([store.load(), connectionsStore.load()])
     const pairs = await Promise.all(store.items.map(async (task) => [task.id, (await api.listRuns(task.id))[0]] as const))
     latestRuns.value = Object.fromEntries(pairs)
   } catch { /* store error renders inline */ }
+}
+
+function connectionName(id?: string) {
+  if (!id) return '未选择'
+  return connectionsStore.items.find((item) => item.id === id)?.name ?? '连接已删除'
 }
 
 function create() { editingTask.value = undefined; wizardOpen.value = true }
@@ -69,6 +76,11 @@ function archive(task: Task) {
     async onOk() { await store.archive(task); message.success('任务已归档') },
   })
 }
+
+async function copy(task: Task) {
+  try { await store.copy(task); message.success('任务副本已创建，需重新预检查') }
+  catch (cause) { message.error(cause instanceof Error ? cause.message : '复制失败') }
+}
 </script>
 
 <template>
@@ -95,11 +107,11 @@ function archive(task: Task) {
     <div v-else-if="filtered.length" class="data-surface task-table">
       <div v-for="(task, index) in filtered" :key="task.id" class="data-row task-row" :style="{ '--row-index': index }" @dblclick="router.push(`/tasks/${task.id}`)">
         <div class="task-identity"><span class="mode-code">{{ task.spec.mode === 'sync' ? 'SY' : 'SC' }}</span><div><strong>{{ task.spec.name }}</strong><small>{{ modeLabel[task.spec.mode] }} · revision {{ task.config_revision }}</small></div></div>
-        <div class="route-cell"><span>{{ task.spec.source_connection_id ? '源端已配置' : '缺少源端' }}</span><PhArrowRight :size="14" /><span>{{ task.spec.target_connection_id ? '目标已配置' : '缺少目标' }}</span></div>
+        <div class="route-cell"><span>{{ connectionName(task.spec.source_connection_id) }}</span><PhArrowRight :size="14" /><span>{{ connectionName(task.spec.target_connection_id) }}</span></div>
         <div><small>任务状态</small><StatusPill :label="taskStateMeta[task.state].label" :tone="taskStateMeta[task.state].tone" /></div>
         <div><small>最新运行</small><StatusPill v-if="latestRuns[task.id]" :label="runStateMeta[latestRuns[task.id]!.state].label" :tone="runStateMeta[latestRuns[task.id]!.state].tone" :pulse="latestRuns[task.id]!.state === 'RUNNING'" /><span v-else class="muted">尚未运行</span></div>
         <div><small>更新时间</small><strong>{{ formatDate(task.updated_at) }}</strong></div>
-        <div class="row-actions"><a-button v-if="task.state === 'DRAFT'" @click="edit(task)">继续配置</a-button><a-button v-else type="primary" ghost :loading="startingId === task.id" :disabled="latestRuns[task.id]?.state === 'RUNNING'" @click="start(task)"><template #icon><PhPlay :size="15" weight="fill" /></template>启动</a-button><a-dropdown><a-button type="text"><PhDotsThree :size="20" /></a-button><template #overlay><a-menu><a-menu-item @click="router.push(`/tasks/${task.id}`)">查看详情</a-menu-item><a-menu-item @click="edit(task)">编辑配置</a-menu-item><a-menu-item danger @click="archive(task)"><PhArchive :size="15" /> 归档</a-menu-item></a-menu></template></a-dropdown></div>
+        <div class="row-actions"><a-button v-if="task.state === 'DRAFT'" @click="edit(task)">继续配置</a-button><a-button v-else type="primary" ghost :loading="startingId === task.id" :disabled="latestRuns[task.id]?.state === 'RUNNING'" @click="start(task)"><template #icon><PhPlay :size="15" weight="fill" /></template>启动</a-button><a-dropdown><a-button type="text"><PhDotsThree :size="20" /></a-button><template #overlay><a-menu><a-menu-item @click="router.push(`/tasks/${task.id}`)">查看详情</a-menu-item><a-menu-item @click="edit(task)">编辑配置</a-menu-item><a-menu-item @click="copy(task)"><PhCopy :size="15" /> 复制任务</a-menu-item><a-menu-item danger @click="archive(task)"><PhArchive :size="15" /> 归档</a-menu-item></a-menu></template></a-dropdown></div>
       </div>
     </div>
     <EmptyState v-else title="没有匹配的任务" description="调整搜索词或状态筛选后再试。" />

@@ -107,6 +107,7 @@ type Run struct {
 	StatusHealthy       bool       `json:"status_healthy"`
 	WorkerPath          string     `json:"worker_path,omitempty"`
 	UpdatedAt           time.Time  `json:"updated_at"`
+	ArtifactsDeletedAt  *time.Time `json:"artifacts_deleted_at,omitempty"`
 }
 
 func ValidateTaskTransition(from, to TaskState) error {

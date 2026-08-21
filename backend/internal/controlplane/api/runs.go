@@ -143,6 +143,8 @@ func (s *Server) writeRunError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "task_not_ready", "Task must be READY at the requested config revision")
 	case errors.Is(err, store.ErrActiveRun):
 		writeError(w, http.StatusConflict, "active_run_exists", "Task already has an active or unknown run")
+	case errors.Is(err, store.ErrConcurrencyLimit):
+		writeError(w, http.StatusTooManyRequests, "run_concurrency_limit", "Global active Run limit has been reached")
 	case errors.Is(err, store.ErrRevisionConflict):
 		writeError(w, http.StatusConflict, "revision_conflict", "Task configuration has changed")
 	case errors.Is(err, engine.ErrRunNotManaged):

@@ -32,6 +32,7 @@ function sidebar(): DefaultTheme.SidebarItem[] {
                 { text: 'Configuration', link: '/en/guide/config' },
                 { text: 'Migration Mode Selection', link: '/en/guide/mode' },
                 { text: 'Architecture and Performance', link: '/en/guide/architecture' },
+                { text: 'Web Console Deployment', link: '/en/guide/web-console' },
             ]
         },
         {

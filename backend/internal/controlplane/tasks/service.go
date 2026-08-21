@@ -144,6 +144,22 @@ func (s *Service) Archive(ctx context.Context, id string) error {
 	return s.store.ArchiveTask(ctx, id, s.now())
 }
 
+func (s *Service) Copy(ctx context.Context, id, name string) (View, error) {
+	stored, err := s.store.GetTask(ctx, id)
+	if err != nil {
+		return View{}, err
+	}
+	view, err := decodeTask(stored)
+	if err != nil {
+		return View{}, err
+	}
+	view.Spec.Name = strings.TrimSpace(name)
+	if view.Spec.Name == "" {
+		return View{}, &ValidationError{Field: "name", Message: "is required"}
+	}
+	return s.Create(ctx, view.Spec)
+}
+
 func (s *Service) validateConnectionReferences(ctx context.Context, spec Spec) error {
 	for _, item := range []struct {
 		field string

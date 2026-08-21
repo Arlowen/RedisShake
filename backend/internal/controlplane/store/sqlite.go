@@ -18,6 +18,7 @@ var (
 	ErrRevisionConflict = errors.New("record revision has changed")
 	ErrTaskNotReady     = errors.New("task is not ready")
 	ErrActiveRun        = errors.New("task already has an active run")
+	ErrConcurrencyLimit = errors.New("global run concurrency limit reached")
 )
 
 type Store struct {

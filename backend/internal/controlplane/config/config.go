@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,25 +12,31 @@ import (
 )
 
 const (
-	EnvListenAddress = "REDISSHAKE_LISTEN_ADDR"
-	EnvDataDir       = "REDISSHAKE_DATA_DIR"
-	EnvDatabasePath  = "REDISSHAKE_DB_PATH"
-	EnvRuntimeDir    = "REDISSHAKE_RUNTIME_DIR"
-	EnvMasterKey     = "REDISSHAKE_MASTER_KEY"
-	EnvWorkerPath    = "REDISSHAKE_WORKER_PATH"
-	EnvStartTimeout  = "REDISSHAKE_RUN_START_TIMEOUT"
-	EnvStopTimeout   = "REDISSHAKE_RUN_STOP_TIMEOUT"
+	EnvListenAddress    = "REDISSHAKE_LISTEN_ADDR"
+	EnvDataDir          = "REDISSHAKE_DATA_DIR"
+	EnvDatabasePath     = "REDISSHAKE_DB_PATH"
+	EnvRuntimeDir       = "REDISSHAKE_RUNTIME_DIR"
+	EnvMasterKey        = "REDISSHAKE_MASTER_KEY"
+	EnvWorkerPath       = "REDISSHAKE_WORKER_PATH"
+	EnvStartTimeout     = "REDISSHAKE_RUN_START_TIMEOUT"
+	EnvStopTimeout      = "REDISSHAKE_RUN_STOP_TIMEOUT"
+	EnvWebDir           = "REDISSHAKE_WEB_DIR"
+	EnvMaxConcurrent    = "REDISSHAKE_MAX_CONCURRENT_RUNS"
+	EnvLogRetentionDays = "REDISSHAKE_LOG_RETENTION_DAYS"
 )
 
 type Config struct {
-	ListenAddress string
-	DataDir       string
-	DatabasePath  string
-	RuntimeDir    string
-	MasterKey     []byte
-	WorkerPath    string
-	StartTimeout  time.Duration
-	StopTimeout   time.Duration
+	ListenAddress     string
+	DataDir           string
+	DatabasePath      string
+	RuntimeDir        string
+	MasterKey         []byte
+	WorkerPath        string
+	StartTimeout      time.Duration
+	StopTimeout       time.Duration
+	WebDir            string
+	MaxConcurrentRuns int
+	LogRetentionDays  int
 }
 
 func Load() (Config, error) {
@@ -87,17 +94,47 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	webDir := strings.TrimSpace(os.Getenv(EnvWebDir))
+	if webDir != "" {
+		webDir, err = filepath.Abs(webDir)
+		if err != nil {
+			return Config{}, fmt.Errorf("resolve web directory: %w", err)
+		}
+	}
+	maxConcurrentRuns, err := integerFromEnvironment(EnvMaxConcurrent, 4, false)
+	if err != nil {
+		return Config{}, err
+	}
+	logRetentionDays, err := integerFromEnvironment(EnvLogRetentionDays, 7, true)
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
-		ListenAddress: listenAddress,
-		DataDir:       absoluteDataDir,
-		DatabasePath:  databasePath,
-		RuntimeDir:    runtimeDir,
-		MasterKey:     masterKey,
-		WorkerPath:    workerPath,
-		StartTimeout:  startTimeout,
-		StopTimeout:   stopTimeout,
+		ListenAddress:     listenAddress,
+		DataDir:           absoluteDataDir,
+		DatabasePath:      databasePath,
+		RuntimeDir:        runtimeDir,
+		MasterKey:         masterKey,
+		WorkerPath:        workerPath,
+		StartTimeout:      startTimeout,
+		StopTimeout:       stopTimeout,
+		WebDir:            webDir,
+		MaxConcurrentRuns: maxConcurrentRuns,
+		LogRetentionDays:  logRetentionDays,
 	}, nil
+}
+
+func integerFromEnvironment(name string, fallback int, allowZero bool) (int, error) {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return fallback, nil
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 0 || (!allowZero && parsed == 0) {
+		return 0, fmt.Errorf("%s must be %s integer", name, map[bool]string{true: "a non-negative", false: "a positive"}[allowZero])
+	}
+	return parsed, nil
 }
 
 func durationFromEnvironment(name string, fallback time.Duration) (time.Duration, error) {

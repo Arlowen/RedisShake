@@ -113,6 +113,13 @@ func TestTaskDraftRevisionAndPrecheckLifecycle(t *testing.T) {
 	if strings.Contains(string(ready.LastPrecheckResult), "source-password") {
 		t.Fatal("stored precheck result leaked a connection password")
 	}
+	copied, err := service.Copy(ctx, draft.ID, "Migration Copy")
+	if err != nil {
+		t.Fatalf("Copy() error = %v", err)
+	}
+	if copied.ID == draft.ID || copied.State != domain.TaskStateDraft || copied.ConfigRevision != 1 || copied.LastPrecheckedAt != nil {
+		t.Fatalf("Copy() task = %+v", copied)
+	}
 
 	newDescription := "changed"
 	changed, err := service.Update(ctx, draft.ID, Patch{ExpectedRevision: 2, Description: &newDescription})

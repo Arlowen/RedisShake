@@ -37,6 +37,8 @@ onMounted(load)
         <div><PhPath :size="21" /><span><small>运行目录</small><strong>Task / Run artifacts</strong></span><code>{{ info.runtime_dir }}</code></div>
         <div><PhShieldCheck :size="21" /><span><small>RedisShake Worker</small><strong>独立进程模式</strong></span><code>{{ info.worker_path }}</code></div>
         <div><PhKey :size="21" /><span><small>凭据加密</small><strong>{{ info.secrets_configured ? '主密钥已配置' : '主密钥未配置' }}</strong></span><StatusPill :label="info.secrets_configured ? '可保存凭据' : '只允许无密码连接'" :tone="info.secrets_configured ? 'success' : 'warning'" /></div>
+        <div><PhShieldCheck :size="21" /><span><small>Web 控制台</small><strong>{{ info.web_ui_configured ? '由控制面直接提供' : '开发服务器模式' }}</strong></span><StatusPill :label="info.web_ui_configured ? '单进程部署' : 'Vite proxy'" tone="neutral" /></div>
+        <div><PhHardDrive :size="21" /><span><small>运行约束</small><strong>最多 {{ info.max_concurrent_runs }} 个活动 Run</strong></span><code>日志保留 {{ info.log_retention_days === 0 ? '不限期' : `${info.log_retention_days} 天` }}</code></div>
       </div>
       <div class="security-note"><PhShieldCheck :size="23" /><div><strong>部署边界</strong><p>控制面默认监听回环地址。对外提供页面时，请通过带 TLS 和访问控制的反向代理暴露，不要直接发布内部状态端口。</p></div></div>
     </template>

@@ -50,11 +50,17 @@ export const useTasksStore = defineStore('tasks', () => {
     items.value = items.value.filter((item) => item.id !== task.id)
   }
 
+  async function copy(task: Task) {
+    const copied = await api.copyTask(task.id, `${task.spec.name} 副本`)
+    items.value = [copied, ...items.value]
+    return copied
+  }
+
   function replace(task: Task) {
     const index = items.value.findIndex((item) => item.id === task.id)
     if (index === -1) items.value = [task, ...items.value]
     else items.value.splice(index, 1, task)
   }
 
-  return { items, loading, error, load, createDraft, updateDraft, precheck, start, archive, replace }
+  return { items, loading, error, load, createDraft, updateDraft, precheck, start, archive, copy, replace }
 })

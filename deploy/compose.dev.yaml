@@ -1,0 +1,48 @@
+name: redisshake-demo
+
+services:
+  redis-shake-ui:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile.web
+      args:
+        VERSION: dev
+        COMMIT: compose
+    image: redisshake-ui:dev
+    init: true
+    stop_grace_period: 40s
+    environment:
+      # Development-only deterministic key. Never reuse it for real credentials.
+      REDISSHAKE_MASTER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - redis-shake-ui-dev-data:/var/lib/redis-shake-ui
+    depends_on:
+      source-redis:
+        condition: service_healthy
+      target-redis:
+        condition: service_healthy
+
+  source-redis:
+    image: redis:7.2-alpine
+    ports:
+      - "127.0.0.1:${REDISSHAKE_DEMO_SOURCE_PORT:-26379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 2s
+      timeout: 1s
+      retries: 20
+
+  target-redis:
+    image: redis:7.2-alpine
+    ports:
+      - "127.0.0.1:${REDISSHAKE_DEMO_TARGET_PORT:-26380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 2s
+      timeout: 1s
+      retries: 20
+
+volumes:
+  redis-shake-ui-dev-data:

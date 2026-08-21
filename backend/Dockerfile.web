@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1.7
+
+FROM node:24-alpine AS frontend-builder
+WORKDIR /src/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+FROM golang:1.26-alpine AS backend-builder
+ARG VERSION=dev
+ARG COMMIT=unknown
+WORKDIR /src/backend
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+COPY backend/ ./
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-X main.Version=${VERSION} -X main.GitCommit=${COMMIT}" -o /out/redis-shake ./cmd/redis-shake
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-X main.Version=${VERSION} -X main.GitCommit=${COMMIT}" -o /out/redis-shake-server ./cmd/redis-shake-server
+
+FROM alpine:3.22
+RUN apk add --no-cache ca-certificates tzdata \
+    && addgroup -S redisshake \
+    && adduser -S -G redisshake -h /app redisshake \
+    && install -d -o redisshake -g redisshake -m 0700 /var/lib/redis-shake-ui
+WORKDIR /app
+COPY --from=backend-builder --chown=redisshake:redisshake /out/redis-shake /app/redis-shake
+COPY --from=backend-builder --chown=redisshake:redisshake /out/redis-shake-server /app/redis-shake-server
+COPY --from=frontend-builder --chown=redisshake:redisshake /src/frontend/dist /app/web
+
+ENV REDISSHAKE_LISTEN_ADDR=0.0.0.0:8080 \
+    REDISSHAKE_DATA_DIR=/var/lib/redis-shake-ui \
+    REDISSHAKE_WORKER_PATH=/app/redis-shake \
+    REDISSHAKE_WEB_DIR=/app/web
+VOLUME ["/var/lib/redis-shake-ui"]
+EXPOSE 8080
+STOPSIGNAL SIGTERM
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 CMD wget -q -O - http://127.0.0.1:8080/readyz >/dev/null || exit 1
+USER redisshake
+ENTRYPOINT ["/app/redis-shake-server"]

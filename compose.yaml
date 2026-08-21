@@ -1,0 +1,23 @@
+services:
+  redis-shake-ui:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.web
+      args:
+        VERSION: ${REDISSHAKE_VERSION:-dev}
+        COMMIT: ${REDISSHAKE_COMMIT:-local}
+    image: redisshake-ui:${REDISSHAKE_IMAGE_TAG:-local}
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 40s
+    environment:
+      REDISSHAKE_MASTER_KEY: ${REDISSHAKE_MASTER_KEY:-}
+      REDISSHAKE_MAX_CONCURRENT_RUNS: ${REDISSHAKE_MAX_CONCURRENT_RUNS:-4}
+      REDISSHAKE_LOG_RETENTION_DAYS: ${REDISSHAKE_LOG_RETENTION_DAYS:-7}
+    ports:
+      - "127.0.0.1:${REDISSHAKE_UI_PORT:-8080}:8080"
+    volumes:
+      - redis-shake-ui-data:/var/lib/redis-shake-ui
+
+volumes:
+  redis-shake-ui-data:

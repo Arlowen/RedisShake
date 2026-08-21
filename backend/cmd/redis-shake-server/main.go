@@ -57,10 +57,12 @@ func run() error {
 	}
 	taskService := tasks.NewService(database, connectionService, &taskconfig.Renderer{}, config.RuntimeDir)
 	engineManager := engine.NewManager(database, taskService, connectionService, &taskconfig.Renderer{}, engine.ManagerConfig{
-		WorkerPath:   config.WorkerPath,
-		RuntimeDir:   config.RuntimeDir,
-		StartTimeout: config.StartTimeout,
-		StopTimeout:  config.StopTimeout,
+		WorkerPath:        config.WorkerPath,
+		RuntimeDir:        config.RuntimeDir,
+		StartTimeout:      config.StartTimeout,
+		StopTimeout:       config.StopTimeout,
+		MaxConcurrentRuns: config.MaxConcurrentRuns,
+		LogRetention:      time.Duration(config.LogRetentionDays) * 24 * time.Hour,
 	})
 	if recovered, err := engineManager.Initialize(ctx); err != nil {
 		return err

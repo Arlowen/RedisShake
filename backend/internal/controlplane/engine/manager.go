@@ -26,10 +26,12 @@ import (
 )
 
 type ManagerConfig struct {
-	WorkerPath   string
-	RuntimeDir   string
-	StartTimeout time.Duration
-	StopTimeout  time.Duration
+	WorkerPath        string
+	RuntimeDir        string
+	StartTimeout      time.Duration
+	StopTimeout       time.Duration
+	MaxConcurrentRuns int
+	LogRetention      time.Duration
 }
 
 type Manager struct {
@@ -87,6 +89,9 @@ func NewManager(database *store.Store, taskService *tasks.Service, connectionSer
 	if config.StopTimeout <= 0 {
 		config.StopTimeout = 30 * time.Second
 	}
+	if config.MaxConcurrentRuns <= 0 {
+		config.MaxConcurrentRuns = 4
+	}
 	return &Manager{
 		store:       database,
 		tasks:       taskService,
@@ -100,7 +105,14 @@ func NewManager(database *store.Store, taskService *tasks.Service, connectionSer
 }
 
 func (m *Manager) Initialize(ctx context.Context) (int64, error) {
-	return m.store.MarkActiveRunsUnknown(ctx, "control plane restarted; worker ownership could not be proven", m.now())
+	count, err := m.store.MarkActiveRunsUnknown(ctx, "control plane restarted; worker ownership could not be proven", m.now())
+	if err != nil {
+		return 0, err
+	}
+	if err := m.cleanupExpiredArtifacts(ctx); err != nil {
+		return count, err
+	}
+	return count, nil
 }
 
 func (m *Manager) Start(ctx context.Context, taskID string, request StartRequest) (RunView, error) {
@@ -153,7 +165,7 @@ func (m *Manager) Start(ctx context.Context, taskID string, request StartRequest
 		StartedAt:          startedAt,
 		UpdatedAt:          startedAt,
 	}
-	if err := m.store.CreateRunIfNoActive(ctx, run); err != nil {
+	if err := m.store.CreateRunIfNoActive(ctx, run, m.config.MaxConcurrentRuns); err != nil {
 		return RunView{}, err
 	}
 	configPath, stdoutPath, err := materializeArtifact(runDir, artifact)
@@ -218,6 +230,31 @@ func (m *Manager) Start(ctx context.Context, taskID string, request StartRequest
 		return view, err
 	}
 	return view, nil
+}
+
+func (m *Manager) cleanupExpiredArtifacts(ctx context.Context) error {
+	if m.config.LogRetention <= 0 {
+		return nil
+	}
+	runs, err := m.store.ListExpiredRunArtifacts(ctx, m.now().Add(-m.config.LogRetention))
+	if err != nil {
+		return err
+	}
+	for _, run := range runs {
+		if filepath.Clean(run.RuntimeDir) == filepath.Clean(m.config.RuntimeDir) {
+			return fmt.Errorf("refusing to delete runtime root for run %s", run.ID)
+		}
+		if err := ensureInside(m.config.RuntimeDir, run.RuntimeDir); err != nil {
+			return fmt.Errorf("refusing to delete artifacts for run %s: %w", run.ID, err)
+		}
+		if err := os.RemoveAll(run.RuntimeDir); err != nil {
+			return fmt.Errorf("delete expired artifacts for run %s: %w", run.ID, err)
+		}
+		if err := m.store.MarkRunArtifactsDeleted(ctx, run.ID, m.now()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (m *Manager) VerifyWorker(ctx context.Context) (string, error) {

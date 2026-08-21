@@ -59,6 +59,10 @@ func TestTaskAPIRevisionPrecheckAndArchive(t *testing.T) {
 	if get.Code != http.StatusOK || !strings.Contains(get.Body.String(), `"state":"READY"`) {
 		t.Fatalf("GET ready task status = %d, body = %s", get.Code, get.Body.String())
 	}
+	copyResponse := performJSONRequest(t, handler, http.MethodPost, "/api/v1/tasks/"+task.ID+"/copy", `{"name":"UI Migration Copy"}`)
+	if copyResponse.Code != http.StatusCreated || !strings.Contains(copyResponse.Body.String(), `"state":"DRAFT"`) {
+		t.Fatalf("POST task copy status = %d, body = %s", copyResponse.Code, copyResponse.Body.String())
+	}
 
 	archive := performJSONRequest(t, handler, http.MethodDelete, "/api/v1/tasks/"+task.ID, "")
 	if archive.Code != http.StatusNoContent {

@@ -1,0 +1,100 @@
+name: redisshake-matrix
+
+services:
+  matrix-ui:
+    image: ${REDISSHAKE_MATRIX_IMAGE:-redisshake-ui:dev}
+    init: true
+    stop_grace_period: 40s
+    environment:
+      REDISSHAKE_MASTER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    ports:
+      - "127.0.0.1:${REDISSHAKE_MATRIX_UI_PORT:-18086}:8080"
+    volumes:
+      - matrix-ui-data:/var/lib/redis-shake-ui
+    depends_on:
+      acl-redis:
+        condition: service_healthy
+      sentinel:
+        condition: service_healthy
+      cluster-init:
+        condition: service_completed_successfully
+      tls-redis:
+        condition: service_healthy
+
+  acl-redis:
+    image: redis:7.2-alpine
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ./matrix/acl-redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "--user", "sync-user", "--pass", "matrix-pass", "--no-auth-warning", "PING"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+
+  sentinel-master:
+    image: redis:7.2-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+
+  sentinel:
+    image: redis:7.2-alpine
+    command: ["sh", "-c", "cp /matrix/sentinel.conf /tmp/sentinel.conf && exec redis-sentinel /tmp/sentinel.conf"]
+    volumes:
+      - ./matrix/sentinel.conf:/matrix/sentinel.conf:ro
+    depends_on:
+      sentinel-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "SENTINEL", "get-master-addr-by-name", "matrix-master"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+
+  cluster-1:
+    image: redis:7.2-alpine
+    command: ["redis-server", "--port", "6379", "--protected-mode", "no", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000", "--cluster-announce-hostname", "cluster-1", "--cluster-preferred-endpoint-type", "hostname"]
+    healthcheck: &cluster-health
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+
+  cluster-2:
+    image: redis:7.2-alpine
+    command: ["redis-server", "--port", "6379", "--protected-mode", "no", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000", "--cluster-announce-hostname", "cluster-2", "--cluster-preferred-endpoint-type", "hostname"]
+    healthcheck: *cluster-health
+
+  cluster-3:
+    image: redis:7.2-alpine
+    command: ["redis-server", "--port", "6379", "--protected-mode", "no", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000", "--cluster-announce-hostname", "cluster-3", "--cluster-preferred-endpoint-type", "hostname"]
+    healthcheck: *cluster-health
+
+  cluster-init:
+    image: redis:7.2-alpine
+    command: ["redis-cli", "--cluster", "create", "cluster-1:6379", "cluster-2:6379", "cluster-3:6379", "--cluster-replicas", "0", "--cluster-yes"]
+    depends_on:
+      cluster-1:
+        condition: service_healthy
+      cluster-2:
+        condition: service_healthy
+      cluster-3:
+        condition: service_healthy
+
+  tls-redis:
+    image: redis:7.2-alpine
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ./matrix/tls-redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ${MATRIX_CERT_DIR:?set MATRIX_CERT_DIR to generated certificates}:/certs:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "--tls", "--cacert", "/certs/ca.crt", "-h", "tls-redis", "-p", "6379", "PING"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+volumes:
+  matrix-ui-data:

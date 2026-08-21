@@ -24,6 +24,9 @@ func TestLoadCreatesConfiguredDirectories(t *testing.T) {
 	t.Setenv(EnvWorkerPath, filepath.Join(root, "redis-shake"))
 	t.Setenv(EnvStartTimeout, "3s")
 	t.Setenv(EnvStopTimeout, "5s")
+	t.Setenv(EnvWebDir, filepath.Join(root, "web"))
+	t.Setenv(EnvMaxConcurrent, "6")
+	t.Setenv(EnvLogRetentionDays, "14")
 
 	config, err := Load()
 	if err != nil {
@@ -40,6 +43,12 @@ func TestLoadCreatesConfiguredDirectories(t *testing.T) {
 	}
 	if config.StartTimeout != 3*time.Second || config.StopTimeout != 5*time.Second {
 		t.Fatalf("timeouts = %s/%s", config.StartTimeout, config.StopTimeout)
+	}
+	if config.WebDir != filepath.Join(root, "web") {
+		t.Fatalf("WebDir = %q", config.WebDir)
+	}
+	if config.MaxConcurrentRuns != 6 || config.LogRetentionDays != 14 {
+		t.Fatalf("run limits = %d/%d", config.MaxConcurrentRuns, config.LogRetentionDays)
 	}
 	for _, dir := range []string{dataDir, runtimeDir, filepath.Dir(databasePath)} {
 		info, err := os.Stat(dir)
@@ -73,6 +82,9 @@ func TestLoadDefaultsToLoopback(t *testing.T) {
 	t.Setenv(EnvWorkerPath, "")
 	t.Setenv(EnvStartTimeout, "")
 	t.Setenv(EnvStopTimeout, "")
+	t.Setenv(EnvWebDir, "")
+	t.Setenv(EnvMaxConcurrent, "")
+	t.Setenv(EnvLogRetentionDays, "")
 
 	config, err := Load()
 	if err != nil {
@@ -83,5 +95,8 @@ func TestLoadDefaultsToLoopback(t *testing.T) {
 	}
 	if config.SecretsConfigured() {
 		t.Fatal("SecretsConfigured() = true without a key")
+	}
+	if config.MaxConcurrentRuns != 4 || config.LogRetentionDays != 7 {
+		t.Fatalf("default run limits = %d/%d", config.MaxConcurrentRuns, config.LogRetentionDays)
 	}
 }

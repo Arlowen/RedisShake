@@ -51,6 +51,7 @@ export const api = {
   updateConnection: (id: string, patch: Partial<ConnectionInput>) =>
     request<Connection>(`/api/v1/connections/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   deleteConnection: (id: string) => request<void>(`/api/v1/connections/${id}`, { method: 'DELETE' }),
+  copyConnection: (id: string, name: string) => request<Connection>(`/api/v1/connections/${id}/copy`, { method: 'POST', body: JSON.stringify({ name }) }),
   testConnection: (connection: ConnectionInput, purpose: TestPurpose) =>
     request<ConnectionTestResult>('/api/v1/connections/test', { method: 'POST', body: JSON.stringify({ connection, purpose }) }),
   testSavedConnection: (id: string, purpose: TestPurpose) =>
@@ -64,6 +65,7 @@ export const api = {
   updateTask: (id: string, expectedRevision: number, patch: Partial<TaskSpec>) =>
     request<Task>(`/api/v1/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ expected_revision: expectedRevision, ...patch }) }),
   archiveTask: (id: string) => request<void>(`/api/v1/tasks/${id}`, { method: 'DELETE' }),
+  copyTask: (id: string, name: string) => request<Task>(`/api/v1/tasks/${id}/copy`, { method: 'POST', body: JSON.stringify({ name }) }),
   precheckTask: (id: string, expectedRevision: number, acknowledgeWarnings: boolean) =>
     request<PrecheckResult>(`/api/v1/tasks/${id}/precheck`, {
       method: 'POST',

@@ -86,6 +86,20 @@ func (s *Server) handlePrecheckTask(w http.ResponseWriter, request *http.Request
 	writeJSON(w, http.StatusOK, result)
 }
 
+func (s *Server) handleCopyTask(w http.ResponseWriter, request *http.Request) {
+	var input copyRequest
+	if err := decodeJSON(w, request, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", err.Error())
+		return
+	}
+	task, err := s.tasks.Copy(request.Context(), request.PathValue("id"), input.Name)
+	if err != nil {
+		s.writeTaskError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, task)
+}
+
 func (s *Server) writeTaskError(w http.ResponseWriter, err error) {
 	var validation *tasks.ValidationError
 	switch {

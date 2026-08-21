@@ -121,4 +121,10 @@ var migrations = []migration{
 			`ALTER TABLE runs ADD COLUMN updated_at TEXT`,
 		},
 	},
+	{
+		version: 5,
+		statements: []string{
+			`ALTER TABLE runs ADD COLUMN artifacts_deleted_at TEXT`,
+		},
+	},
 }

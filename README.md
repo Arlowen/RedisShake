@@ -63,6 +63,16 @@ sh build.sh
 
 The Web control-plane foundation is under `backend/cmd/redis-shake-server`. See [`backend/CONTROL_PLANE.md`](./backend/CONTROL_PLANE.md) for its data layout, configuration, and local run instructions.
 
+### Web Console
+
+Start the visual task manager and two demo Redis instances:
+
+```shell
+docker compose -f deploy/compose.dev.yaml up -d --build --wait
+```
+
+Open `http://127.0.0.1:8080`. For production, use `compose.yaml`, generate a unique `REDISSHAKE_MASTER_KEY`, persist the data volume, and place an authenticated TLS reverse proxy in front of the loopback-bound port. See the [Web Console deployment guide](./docs/src/en/guide/web-console.md).
+
 ### For LLM Agents
 
 Copy and paste this prompt to your LLM agent (Claude Code, Cursor, etc.):

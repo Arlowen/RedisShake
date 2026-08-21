@@ -88,6 +88,23 @@ func TestManagerSyncStopAndDuplicateProtection(t *testing.T) {
 	if _, err := manager.Start(ctx, task.ID, StartRequest{ExpectedRevision: task.ConfigRevision}); !errors.Is(err, store.ErrActiveRun) {
 		t.Fatalf("duplicate Start() error = %v", err)
 	}
+	otherTask, err := manager.tasks.Create(ctx, tasks.Spec{
+		Name:               "Other Task",
+		Mode:               domain.TaskModeSync,
+		SourceConnectionID: task.Spec.SourceConnectionID,
+		TargetConnectionID: task.Spec.TargetConnectionID,
+	})
+	if err != nil {
+		t.Fatalf("Create(other task) error = %v", err)
+	}
+	if result, err := manager.tasks.Precheck(ctx, otherTask.ID, tasks.PrecheckRequest{ExpectedRevision: otherTask.ConfigRevision}); err != nil || !result.Ready {
+		t.Fatalf("Precheck(other task) = %+v/%v", result, err)
+	}
+	otherTask, _ = manager.tasks.Get(ctx, otherTask.ID)
+	manager.config.MaxConcurrentRuns = 1
+	if _, err := manager.Start(ctx, otherTask.ID, StartRequest{ExpectedRevision: otherTask.ConfigRevision}); !errors.Is(err, store.ErrConcurrencyLimit) {
+		t.Fatalf("global concurrency Start() error = %v", err)
+	}
 	stopping, err := manager.Stop(ctx, run.ID)
 	if err != nil {
 		t.Fatalf("Stop() error = %v", err)
@@ -148,6 +165,46 @@ func TestManagerWorkerUnavailable(t *testing.T) {
 	manager.config.WorkerPath = filepath.Join(t.TempDir(), "missing-worker")
 	if _, err := manager.Start(context.Background(), task.ID, StartRequest{ExpectedRevision: task.ConfigRevision}); !errors.Is(err, ErrWorkerUnavailable) {
 		t.Fatalf("Start() error = %v, want ErrWorkerUnavailable", err)
+	}
+}
+
+func TestManagerCleansExpiredTerminalArtifacts(t *testing.T) {
+	manager, task, database := newEngineTestManager(t, domain.TaskModeScan)
+	defer database.Close()
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	manager.now = func() time.Time { return now }
+	manager.config.LogRetention = 7 * 24 * time.Hour
+	runDir := filepath.Join(manager.config.RuntimeDir, "tasks", task.ID, "runs", "expired-run")
+	if err := os.MkdirAll(runDir, 0o700); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(runDir, "stdout.log"), []byte("expired"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	finishedAt := now.Add(-8 * 24 * time.Hour)
+	exitCode := 0
+	if err := database.CreateRun(context.Background(), domain.Run{
+		ID:             "expired-run",
+		TaskID:         task.ID,
+		ConfigRevision: task.ConfigRevision,
+		State:          domain.RunStateSucceeded,
+		RuntimeDir:     runDir,
+		StartedAt:      finishedAt.Add(-time.Minute),
+		FinishedAt:     &finishedAt,
+		ExitCode:       &exitCode,
+		UpdatedAt:      finishedAt,
+	}); err != nil {
+		t.Fatalf("CreateRun(expired) error = %v", err)
+	}
+	if _, err := manager.Initialize(context.Background()); err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+	if _, err := os.Stat(runDir); !os.IsNotExist(err) {
+		t.Fatalf("expired run directory still exists, err = %v", err)
+	}
+	stored, err := database.GetRun(context.Background(), "expired-run")
+	if err != nil || stored.ArtifactsDeletedAt == nil {
+		t.Fatalf("expired run metadata = %+v/%v", stored, err)
 	}
 }
 

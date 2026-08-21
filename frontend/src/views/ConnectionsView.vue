@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { Modal, message } from 'ant-design-vue'
-import { PhArrowsClockwise, PhDotsThree, PhPlus, PhShieldCheck, PhTrash } from '@phosphor-icons/vue'
+import { PhArrowsClockwise, PhCopy, PhDotsThree, PhPlus, PhShieldCheck, PhTrash } from '@phosphor-icons/vue'
 
 import type { Connection } from '@/api/types'
 import ConnectionDrawer from '@/components/ConnectionDrawer.vue'
@@ -40,6 +40,11 @@ function remove(connection: Connection) {
     async onOk() { await store.remove(connection.id); message.success('连接已删除') },
   })
 }
+
+async function copy(connection: Connection) {
+  try { await store.copy(connection); message.success('连接副本已创建，凭据已重新加密') }
+  catch (cause) { message.error(cause instanceof Error ? cause.message : '复制失败') }
+}
 </script>
 
 <template>
@@ -60,7 +65,7 @@ function remove(connection: Connection) {
         <div><small>拓扑</small><strong>{{ topologyLabel[connection.topology] }}</strong></div>
         <div><small>凭据</small><StatusPill :label="connection.password_configured ? '已加密' : '无密码'" :tone="connection.password_configured ? 'success' : 'neutral'" /></div>
         <div><small>最近检查</small><strong>{{ formatDate(connection.last_tested_at) }}</strong></div>
-        <div class="row-actions"><a-button :loading="testingId === connection.id" @click="test(connection)">测试</a-button><a-dropdown><a-button type="text"><PhDotsThree :size="20" /></a-button><template #overlay><a-menu><a-menu-item @click="openEdit(connection)">编辑连接</a-menu-item><a-menu-item danger @click="remove(connection)"><PhTrash :size="15" /> 删除</a-menu-item></a-menu></template></a-dropdown></div>
+        <div class="row-actions"><a-button :loading="testingId === connection.id" @click="test(connection)">测试</a-button><a-dropdown><a-button type="text"><PhDotsThree :size="20" /></a-button><template #overlay><a-menu><a-menu-item @click="openEdit(connection)">编辑连接</a-menu-item><a-menu-item @click="copy(connection)"><PhCopy :size="15" /> 复制连接</a-menu-item><a-menu-item danger @click="remove(connection)"><PhTrash :size="15" /> 删除</a-menu-item></a-menu></template></a-dropdown></div>
       </div>
     </div>
     <ConnectionDrawer :open="drawerOpen" :connection="editing" @close="drawerOpen=false" @saved="onSaved" />

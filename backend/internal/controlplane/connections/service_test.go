@@ -97,6 +97,17 @@ func TestServiceCreateUpdateAndResolveProtectsSecrets(t *testing.T) {
 	if updated.PasswordConfigured {
 		t.Fatal("Update(clear password) left password configured")
 	}
+	copied, err := service.Copy(ctx, created.ID, "Production Redis Copy")
+	if err != nil {
+		t.Fatalf("Copy() error = %v", err)
+	}
+	if copied.ID == created.ID || copied.Name != "Production Redis Copy" || !copied.TLS.ClientKeyConfigured {
+		t.Fatalf("Copy() result = %+v", copied)
+	}
+	resolvedCopy, err := service.Resolve(ctx, copied.ID)
+	if err != nil || resolvedCopy.TLS.ClientKeyPEM != "client-private-key" {
+		t.Fatalf("Resolve(copy) = %+v/%v", resolvedCopy, err)
+	}
 }
 
 func TestServiceRejectsSecretWithoutMasterKey(t *testing.T) {

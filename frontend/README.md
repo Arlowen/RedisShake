@@ -14,3 +14,11 @@ npm run typecheck
 npm run test
 npm run build
 ```
+
+The Playwright E2E expects `deploy/compose.dev.yaml` to be running and verifies a real UI-created RedisShake scan:
+
+```shell
+docker compose -f ../deploy/compose.dev.yaml up -d --build --wait
+npx playwright install chromium
+npm run test:e2e
+```

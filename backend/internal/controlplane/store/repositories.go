@@ -317,7 +317,7 @@ func (s *Store) CreateRun(ctx context.Context, run domain.Run) error {
 	return insertRun(ctx, s.db, run)
 }
 
-func (s *Store) CreateRunIfNoActive(ctx context.Context, run domain.Run) error {
+func (s *Store) CreateRunIfNoActive(ctx context.Context, run domain.Run, maxConcurrent int) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin run creation: %w", err)
@@ -339,6 +339,16 @@ func (s *Store) CreateRunIfNoActive(ctx context.Context, run domain.Run) error {
 	}
 	if active == 1 {
 		return ErrActiveRun
+	}
+	if maxConcurrent > 0 {
+		var activeCount int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM runs
+			WHERE state IN ('STARTING', 'RUNNING', 'STOPPING', 'UNKNOWN')`).Scan(&activeCount); err != nil {
+			return fmt.Errorf("count active runs: %w", err)
+		}
+		if activeCount >= maxConcurrent {
+			return ErrConcurrencyLimit
+		}
 	}
 	if err := insertRun(ctx, tx, run); err != nil {
 		return err
@@ -362,8 +372,8 @@ func insertRun(ctx context.Context, executor sqlExecer, run domain.Run) error {
 		id, task_id, config_revision, config_snapshot_json, state,
 		pid, process_started_at, status_port, runtime_dir, started_at,
 		finished_at, exit_code, exit_reason, last_heartbeat_at, stop_requested_by_user,
-		status_json, status_healthy, worker_path, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		status_json, status_healthy, worker_path, updated_at, artifacts_deleted_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		run.ID,
 		run.TaskID,
 		run.ConfigRevision,
@@ -383,6 +393,7 @@ func insertRun(ctx context.Context, executor sqlExecer, run domain.Run) error {
 		boolToInt(run.StatusHealthy),
 		run.WorkerPath,
 		formatTime(updatedAt),
+		formatOptionalTime(run.ArtifactsDeletedAt),
 	)
 	if err != nil {
 		return fmt.Errorf("create run: %w", mapWriteError(err))
@@ -395,9 +406,47 @@ func (s *Store) GetRun(ctx context.Context, id string) (domain.Run, error) {
 		id, task_id, config_revision, config_snapshot_json, state,
 		pid, process_started_at, status_port, runtime_dir, started_at,
 		finished_at, exit_code, exit_reason, last_heartbeat_at, stop_requested_by_user,
-		status_json, status_healthy, worker_path, updated_at
+		status_json, status_healthy, worker_path, updated_at, artifacts_deleted_at
 		FROM runs WHERE id = ?`, id)
 	return scanRun(row)
+}
+
+func (s *Store) ListExpiredRunArtifacts(ctx context.Context, finishedBefore time.Time) ([]domain.Run, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT
+		id, task_id, config_revision, config_snapshot_json, state,
+		pid, process_started_at, status_port, runtime_dir, started_at,
+		finished_at, exit_code, exit_reason, last_heartbeat_at, stop_requested_by_user,
+		status_json, status_healthy, worker_path, updated_at, artifacts_deleted_at
+		FROM runs
+		WHERE state IN ('STOPPED', 'SUCCEEDED', 'FAILED')
+		  AND finished_at IS NOT NULL AND finished_at < ?
+		  AND artifacts_deleted_at IS NULL AND runtime_dir <> ''
+		ORDER BY finished_at`, formatTime(finishedBefore))
+	if err != nil {
+		return nil, fmt.Errorf("list expired run artifacts: %w", err)
+	}
+	defer rows.Close()
+	runs := make([]domain.Run, 0)
+	for rows.Next() {
+		run, err := scanRun(rows)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, run)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate expired run artifacts: %w", err)
+	}
+	return runs, nil
+}
+
+func (s *Store) MarkRunArtifactsDeleted(ctx context.Context, id string, deletedAt time.Time) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE runs SET artifacts_deleted_at = ?, updated_at = ?
+		WHERE id = ? AND state IN ('STOPPED', 'SUCCEEDED', 'FAILED')`, formatTime(deletedAt), formatTime(deletedAt), id)
+	if err != nil {
+		return fmt.Errorf("mark run artifacts deleted: %w", err)
+	}
+	return requireChanged(result, "deleted run artifacts")
 }
 
 func (s *Store) ListRunsByTask(ctx context.Context, taskID string) ([]domain.Run, error) {
@@ -405,7 +454,7 @@ func (s *Store) ListRunsByTask(ctx context.Context, taskID string) ([]domain.Run
 		id, task_id, config_revision, config_snapshot_json, state,
 		pid, process_started_at, status_port, runtime_dir, started_at,
 		finished_at, exit_code, exit_reason, last_heartbeat_at, stop_requested_by_user,
-		status_json, status_healthy, worker_path, updated_at
+		status_json, status_healthy, worker_path, updated_at, artifacts_deleted_at
 		FROM runs WHERE task_id = ? ORDER BY started_at DESC`, taskID)
 	if err != nil {
 		return nil, fmt.Errorf("list task runs: %w", err)
@@ -627,7 +676,7 @@ func (s *Store) taskWriteMiss(ctx context.Context, id string, expectedRevision i
 func scanRun(row scanner) (domain.Run, error) {
 	var run domain.Run
 	var pid, statusPort, exitCode sql.NullInt64
-	var processStartedAt, finishedAt, heartbeatAt, updatedAt sql.NullString
+	var processStartedAt, finishedAt, heartbeatAt, updatedAt, artifactsDeletedAt sql.NullString
 	var startedAt string
 	var stopRequested, statusHealthy int
 	err := row.Scan(
@@ -650,6 +699,7 @@ func scanRun(row scanner) (domain.Run, error) {
 		&statusHealthy,
 		&run.WorkerPath,
 		&updatedAt,
+		&artifactsDeletedAt,
 	)
 	if err != nil {
 		return domain.Run{}, mapNotFound(err)
@@ -677,6 +727,9 @@ func scanRun(row scanner) (domain.Run, error) {
 		}
 	} else {
 		run.UpdatedAt = run.StartedAt
+	}
+	if run.ArtifactsDeletedAt, err = parseOptionalTime(artifactsDeletedAt); err != nil {
+		return domain.Run{}, err
 	}
 	return run, nil
 }

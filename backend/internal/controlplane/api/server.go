@@ -59,12 +59,14 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("DELETE /api/v1/connections/{id}", s.handleDeleteConnection)
 	mux.HandleFunc("POST /api/v1/connections/test", s.handleTestUnsavedConnection)
 	mux.HandleFunc("POST /api/v1/connections/{id}/test", s.handleTestSavedConnection)
+	mux.HandleFunc("POST /api/v1/connections/{id}/copy", s.handleCopyConnection)
 	mux.HandleFunc("GET /api/v1/tasks", s.handleListTasks)
 	mux.HandleFunc("POST /api/v1/tasks", s.handleCreateTask)
 	mux.HandleFunc("GET /api/v1/tasks/{id}", s.handleGetTask)
 	mux.HandleFunc("PATCH /api/v1/tasks/{id}", s.handleUpdateTask)
 	mux.HandleFunc("DELETE /api/v1/tasks/{id}", s.handleArchiveTask)
 	mux.HandleFunc("POST /api/v1/tasks/{id}/precheck", s.handlePrecheckTask)
+	mux.HandleFunc("POST /api/v1/tasks/{id}/copy", s.handleCopyTask)
 	mux.HandleFunc("POST /api/v1/tasks/{id}/runs", s.handleStartRun)
 	mux.HandleFunc("GET /api/v1/tasks/{id}/runs", s.handleListRuns)
 	mux.HandleFunc("GET /api/v1/runs/{id}", s.handleGetRun)
@@ -72,7 +74,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/runs/{id}/force-stop", s.handleForceStopRun)
 	mux.HandleFunc("GET /api/v1/runs/{id}/logs", s.handleRunLogs)
 	mux.HandleFunc("GET /api/v1/runs/{id}/events", s.handleRunEvents)
-	mux.HandleFunc("/", s.handleNotFound)
+	mux.Handle("/", s.fallbackHandler())
 	return securityHeaders(mux)
 }
 
@@ -98,13 +100,16 @@ func (s *Server) handleReady(w http.ResponseWriter, request *http.Request) {
 
 func (s *Server) handleSystemInfo(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"version":            s.buildInfo.Version,
-		"git_commit":         s.buildInfo.GitCommit,
-		"storage":            "sqlite",
-		"data_dir":           s.config.DataDir,
-		"runtime_dir":        s.config.RuntimeDir,
-		"secrets_configured": s.config.SecretsConfigured(),
-		"worker_path":        s.config.WorkerPath,
+		"version":             s.buildInfo.Version,
+		"git_commit":          s.buildInfo.GitCommit,
+		"storage":             "sqlite",
+		"data_dir":            s.config.DataDir,
+		"runtime_dir":         s.config.RuntimeDir,
+		"secrets_configured":  s.config.SecretsConfigured(),
+		"worker_path":         s.config.WorkerPath,
+		"web_ui_configured":   s.config.WebDir != "",
+		"max_concurrent_runs": s.config.MaxConcurrentRuns,
+		"log_retention_days":  s.config.LogRetentionDays,
 	})
 }
 
@@ -115,7 +120,7 @@ func (s *Server) handleNotFound(w http.ResponseWriter, _ *http.Request) {
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")

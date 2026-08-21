@@ -53,6 +53,12 @@ func TestHealthReadyAndSystemInfo(t *testing.T) {
 	if payload["worker_path"] != config.WorkerPath {
 		t.Fatalf("worker_path = %#v", payload["worker_path"])
 	}
+	if payload["web_ui_configured"] != false {
+		t.Fatalf("web_ui_configured = %#v", payload["web_ui_configured"])
+	}
+	if payload["max_concurrent_runs"] != float64(config.MaxConcurrentRuns) || payload["log_retention_days"] != float64(config.LogRetentionDays) {
+		t.Fatalf("run settings = %#v/%#v", payload["max_concurrent_runs"], payload["log_retention_days"])
+	}
 	if payload["secrets_configured"] != true {
 		t.Fatalf("secrets_configured = %#v", payload["secrets_configured"])
 	}
@@ -101,12 +107,14 @@ func newTestServer(t *testing.T, checkers ...connections.Checker) (*store.Store,
 		t.Fatalf("store.Open() error = %v", err)
 	}
 	config := cpconfig.Config{
-		ListenAddress: "127.0.0.1:0",
-		DataDir:       root,
-		DatabasePath:  database.Path(),
-		RuntimeDir:    filepath.Join(root, "runtime"),
-		MasterKey:     bytes.Repeat([]byte{0x61}, 32),
-		WorkerPath:    filepath.Join(root, "redis-shake"),
+		ListenAddress:     "127.0.0.1:0",
+		DataDir:           root,
+		DatabasePath:      database.Path(),
+		RuntimeDir:        filepath.Join(root, "runtime"),
+		MasterKey:         bytes.Repeat([]byte{0x61}, 32),
+		WorkerPath:        filepath.Join(root, "redis-shake"),
+		MaxConcurrentRuns: 4,
+		LogRetentionDays:  7,
 	}
 	cipher, err := secrets.NewCipher(config.MasterKey)
 	if err != nil {
