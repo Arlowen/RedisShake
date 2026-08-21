@@ -1,5 +1,16 @@
 # RedisShake Web Console
 
-The RedisShake web management console lives in this directory.
+Vue 3 control plane UI for creating, prechecking, running, and monitoring RedisShake tasks.
 
-The frontend application has not been scaffolded yet. Its first version will provide visual Redis connection management, synchronization task configuration, execution control, progress monitoring, and log inspection.
+```shell
+npm install
+npm run dev
+```
+
+The Vite development server proxies `/api` to `http://127.0.0.1:8080`. Build and test with:
+
+```shell
+npm run typecheck
+npm run test
+npm run build
+```

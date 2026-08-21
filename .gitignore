@@ -2,6 +2,7 @@
 .idea/
 __pycache__/
 .DS_Store
+node_modules/
 
 # compiled output or test output
 bin/
@@ -9,3 +10,4 @@ dist/
 tmp/
 data/
 *.log
+coverage/
