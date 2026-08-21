@@ -50,4 +50,4 @@ RedisShake 提供了不同的 Writer 用来对接不同的目标端，配置详�
 
 ## advanced 配置
 
-参考 [shake.toml 配置文件](https://github.com/Arlowen/RedisShake/blob/v4/backend/shake.toml)。
+参考 [shake.toml 配置文件](https://github.com/Arlowen/RedisShake/blob/main/backend/shake.toml)。

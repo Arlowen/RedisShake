@@ -19,7 +19,7 @@ export default defineConfigWithTheme({
             { icon: "github", link: "https://github.com/tair-opensource/RedisShake" }
         ],
         editLink: {
-            pattern: "https://github.com/tair-opensource/RedisShake/tree/v4/docs/src/:path"
+            pattern: "https://github.com/Arlowen/RedisShake/tree/main/docs/src/:path"
         },
         lastUpdated: {
             text: "Updated at",

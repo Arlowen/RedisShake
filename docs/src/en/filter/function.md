@@ -56,7 +56,7 @@ Because some commands contain multiple keys, such as `MSET`, the variables `KEYS
 | --- | --- | --- | --- |
 | `DB` | number | `1` | The database to which the command belongs. |
 | `CMD` | string | `"XGROUP-DELCONSUMER"` | The name of the command. |
-| `GROUP` | string | `"LIST"` | The command group, conforming to [Command key specifications](https://redis.io/docs/reference/key-specs/). You can check the `group` field for each command in [commands](https://github.com/Arlowen/RedisShake/tree/v4/backend/scripts/commands). |
+| `GROUP` | string | `"LIST"` | The command group, conforming to [Command key specifications](https://redis.io/docs/reference/key-specs/). You can check the `group` field for each command in [commands](https://github.com/Arlowen/RedisShake/tree/main/backend/scripts/commands). |
 | `KEYS` | table | `{"key1", "key2"}` | All keys of the command. |
 | `KEY_INDEXES` | table | `{2, 4}` | Indexes of all keys inside `ARGV`. |
 | `SLOTS` | table | `{9189, 4998}` | Hash slots of the keys (cluster mode). |

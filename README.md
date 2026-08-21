@@ -1,7 +1,7 @@
 # RedisShake: Redis Data Transformation and Migration Tool
 
-[![CI](https://img.shields.io/github/actions/workflow/status/tair-opensource/RedisShake/ci.yml?branch=v4&label=CI
-)](https://github.com/tair-opensource/RedisShake/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/Arlowen/RedisShake/ci.yml?branch=main&label=CI
+)](https://github.com/Arlowen/RedisShake/actions/workflows/ci.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Ftair-opensource.github.io%2FRedisShake%2F&up_message=%E4%B8%AD%E6%96%87%20%2F%20English&up_color=red&label=Doc
 )](https://tair-opensource.github.io/RedisShake/)
 [![Release](https://img.shields.io/github/v/release/tair-opensource/RedisShake?color=blue&label=Release)](https://github.com/tair-opensource/RedisShake/releases)
@@ -67,7 +67,7 @@ Copy and paste this prompt to your LLM agent (Claude Code, Cursor, etc.):
 
 ```
 Read the RedisShake usage guide and help me with my task:
-https://raw.githubusercontent.com/Arlowen/RedisShake/v4/README_FOR_AGENTS.md
+https://raw.githubusercontent.com/Arlowen/RedisShake/main/README_FOR_AGENTS.md
 ```
 
 ## How to Use RedisShake
