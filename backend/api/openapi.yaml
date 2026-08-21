@@ -1,0 +1,94 @@
+openapi: 3.1.0
+info:
+  title: RedisShake Control Plane API
+  version: 0.1.0
+  description: API contract for the RedisShake Web control plane.
+servers:
+  - url: http://127.0.0.1:8080
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      summary: Process liveness
+      responses:
+        "200":
+          description: The control-plane process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /readyz:
+    get:
+      operationId: getReadiness
+      summary: Storage readiness
+      responses:
+        "200":
+          description: The control plane and SQLite storage are ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Readiness"
+        "503":
+          description: SQLite storage is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/system/info:
+    get:
+      operationId: getSystemInfo
+      summary: Control-plane build and storage information
+      responses:
+        "200":
+          description: System information without credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemInfo"
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status, started_at]
+      properties:
+        status:
+          const: ok
+        started_at:
+          type: string
+          format: date-time
+    Readiness:
+      type: object
+      required: [status, database]
+      properties:
+        status:
+          const: ready
+        database:
+          const: ok
+    SystemInfo:
+      type: object
+      required: [version, git_commit, storage, data_dir, runtime_dir, secrets_configured]
+      properties:
+        version:
+          type: string
+        git_commit:
+          type: string
+        storage:
+          const: sqlite
+        data_dir:
+          type: string
+        runtime_dir:
+          type: string
+        secrets_configured:
+          type: boolean
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string

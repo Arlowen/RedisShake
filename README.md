@@ -61,6 +61,8 @@ sh build.sh
 - `frontend/`: Web management console.
 - `docs/`: Project documentation site.
 
+The Web control-plane foundation is under `backend/cmd/redis-shake-server`. See [`backend/CONTROL_PLANE.md`](./backend/CONTROL_PLANE.md) for its data layout, configuration, and local run instructions.
+
 ### For LLM Agents
 
 Copy and paste this prompt to your LLM agent (Claude Code, Cursor, etc.):
