@@ -159,14 +159,14 @@ func (s *Store) CreateTask(ctx context.Context, task domain.Task) error {
 	_, err := s.db.ExecContext(ctx, `INSERT INTO tasks (
 		id, name, description, mode, source_connection_id, target_connection_id,
 		reader_options_json, filter_options_json, advanced_options_json,
-		state, config_revision, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		state, config_revision, created_at, updated_at, last_prechecked_at, last_precheck_result_json
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		task.ID,
 		task.Name,
 		task.Description,
 		task.Mode,
-		task.SourceConnectionID,
-		task.TargetConnectionID,
+		optionalString(task.SourceConnectionID),
+		optionalString(task.TargetConnectionID),
 		emptyJSON(task.ReaderOptionsJSON),
 		emptyJSON(task.FilterOptionsJSON),
 		emptyJSON(task.AdvancedOptionsJSON),
@@ -174,9 +174,11 @@ func (s *Store) CreateTask(ctx context.Context, task domain.Task) error {
 		task.ConfigRevision,
 		formatTime(task.CreatedAt),
 		formatTime(task.UpdatedAt),
+		formatOptionalTime(task.LastPrecheckedAt),
+		task.LastPrecheckResultJSON,
 	)
 	if err != nil {
-		return fmt.Errorf("create task: %w", err)
+		return fmt.Errorf("create task: %w", mapWriteError(err))
 	}
 	return nil
 }
@@ -185,7 +187,7 @@ func (s *Store) GetTask(ctx context.Context, id string) (domain.Task, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT
 		id, name, description, mode, source_connection_id, target_connection_id,
 		reader_options_json, filter_options_json, advanced_options_json,
-		state, config_revision, created_at, updated_at
+		state, config_revision, created_at, updated_at, last_prechecked_at, last_precheck_result_json
 		FROM tasks WHERE id = ?`, id)
 	return scanTask(row)
 }
@@ -194,7 +196,7 @@ func (s *Store) ListTasks(ctx context.Context) ([]domain.Task, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT
 		id, name, description, mode, source_connection_id, target_connection_id,
 		reader_options_json, filter_options_json, advanced_options_json,
-		state, config_revision, created_at, updated_at
+		state, config_revision, created_at, updated_at, last_prechecked_at, last_precheck_result_json
 		FROM tasks ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list tasks: %w", err)
@@ -213,6 +215,102 @@ func (s *Store) ListTasks(ctx context.Context) ([]domain.Task, error) {
 		return nil, fmt.Errorf("iterate tasks: %w", err)
 	}
 	return tasks, nil
+}
+
+func (s *Store) UpdateTask(ctx context.Context, task domain.Task, expectedRevision int64) (int64, error) {
+	newRevision := expectedRevision + 1
+	result, err := s.db.ExecContext(ctx, `UPDATE tasks SET
+		name = ?, description = ?, mode = ?, source_connection_id = ?, target_connection_id = ?,
+		reader_options_json = ?, filter_options_json = ?, advanced_options_json = ?,
+		state = 'DRAFT', config_revision = ?, updated_at = ?,
+		last_prechecked_at = NULL, last_precheck_result_json = ''
+		WHERE id = ? AND config_revision = ? AND state <> 'ARCHIVED'`,
+		task.Name,
+		task.Description,
+		task.Mode,
+		optionalString(task.SourceConnectionID),
+		optionalString(task.TargetConnectionID),
+		emptyJSON(task.ReaderOptionsJSON),
+		emptyJSON(task.FilterOptionsJSON),
+		emptyJSON(task.AdvancedOptionsJSON),
+		newRevision,
+		formatTime(task.UpdatedAt),
+		task.ID,
+		expectedRevision,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("update task: %w", mapWriteError(err))
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("read updated task count: %w", err)
+	}
+	if rows == 0 {
+		return 0, s.taskWriteMiss(ctx, task.ID, expectedRevision)
+	}
+	return newRevision, nil
+}
+
+func (s *Store) MarkTaskReady(ctx context.Context, id string, revision int64, checkedAt time.Time, resultJSON string) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE tasks SET
+		state = 'READY', updated_at = ?, last_prechecked_at = ?, last_precheck_result_json = ?
+		WHERE id = ? AND config_revision = ? AND state <> 'ARCHIVED'`,
+		formatTime(checkedAt), formatTime(checkedAt), resultJSON, id, revision)
+	if err != nil {
+		return fmt.Errorf("mark task ready: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read ready task count: %w", err)
+	}
+	if rows == 0 {
+		return s.taskWriteMiss(ctx, id, revision)
+	}
+	return nil
+}
+
+func (s *Store) SaveTaskPrecheckResult(ctx context.Context, id string, revision int64, checkedAt time.Time, resultJSON string) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE tasks SET
+		state = 'DRAFT', updated_at = ?, last_prechecked_at = ?, last_precheck_result_json = ?
+		WHERE id = ? AND config_revision = ? AND state <> 'ARCHIVED'`,
+		formatTime(checkedAt), formatTime(checkedAt), resultJSON, id, revision)
+	if err != nil {
+		return fmt.Errorf("save task precheck result: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read prechecked task count: %w", err)
+	}
+	if rows == 0 {
+		return s.taskWriteMiss(ctx, id, revision)
+	}
+	return nil
+}
+
+func (s *Store) ArchiveTask(ctx context.Context, id string, updatedAt time.Time) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE tasks SET state = 'ARCHIVED', updated_at = ?
+		WHERE id = ? AND state <> 'ARCHIVED' AND NOT EXISTS (
+			SELECT 1 FROM runs
+			WHERE task_id = tasks.id AND state IN ('STARTING', 'RUNNING', 'STOPPING', 'UNKNOWN')
+		)`, formatTime(updatedAt), id)
+	if err != nil {
+		return fmt.Errorf("archive task: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read archived task count: %w", err)
+	}
+	if rows > 0 {
+		return nil
+	}
+	var state domain.TaskState
+	if err := s.db.QueryRowContext(ctx, "SELECT state FROM tasks WHERE id = ?", id).Scan(&state); err != nil {
+		return mapNotFound(err)
+	}
+	if state == domain.TaskStateArchived {
+		return nil
+	}
+	return ErrInUse
 }
 
 func (s *Store) CreateRun(ctx context.Context, run domain.Run) error {
@@ -301,13 +399,15 @@ func scanConnection(row scanner) (domain.Connection, error) {
 func scanTask(row scanner) (domain.Task, error) {
 	var task domain.Task
 	var createdAt, updatedAt string
+	var lastPrecheckedAt sql.NullString
+	var sourceConnectionID, targetConnectionID sql.NullString
 	err := row.Scan(
 		&task.ID,
 		&task.Name,
 		&task.Description,
 		&task.Mode,
-		&task.SourceConnectionID,
-		&task.TargetConnectionID,
+		&sourceConnectionID,
+		&targetConnectionID,
 		&task.ReaderOptionsJSON,
 		&task.FilterOptionsJSON,
 		&task.AdvancedOptionsJSON,
@@ -315,17 +415,35 @@ func scanTask(row scanner) (domain.Task, error) {
 		&task.ConfigRevision,
 		&createdAt,
 		&updatedAt,
+		&lastPrecheckedAt,
+		&task.LastPrecheckResultJSON,
 	)
 	if err != nil {
 		return domain.Task{}, mapNotFound(err)
 	}
+	task.SourceConnectionID = sourceConnectionID.String
+	task.TargetConnectionID = targetConnectionID.String
 	if task.CreatedAt, err = parseTime(createdAt); err != nil {
 		return domain.Task{}, err
 	}
 	if task.UpdatedAt, err = parseTime(updatedAt); err != nil {
 		return domain.Task{}, err
 	}
+	if task.LastPrecheckedAt, err = parseOptionalTime(lastPrecheckedAt); err != nil {
+		return domain.Task{}, err
+	}
 	return task, nil
+}
+
+func (s *Store) taskWriteMiss(ctx context.Context, id string, expectedRevision int64) error {
+	var revision int64
+	if err := s.db.QueryRowContext(ctx, "SELECT config_revision FROM tasks WHERE id = ?", id).Scan(&revision); err != nil {
+		return mapNotFound(err)
+	}
+	if revision != expectedRevision {
+		return ErrRevisionConflict
+	}
+	return ErrConflict
 }
 
 func scanRun(row scanner) (domain.Run, error) {
@@ -408,6 +526,13 @@ func optionalInt(value *int) any {
 		return nil
 	}
 	return *value
+}
+
+func optionalString(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }
 
 func nullIntToPointer(value sql.NullInt64) *int {

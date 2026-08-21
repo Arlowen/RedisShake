@@ -101,9 +101,6 @@ type ShakeOptions struct {
 var Opt ShakeOptions
 
 func LoadConfig() *viper.Viper {
-	defaults.SetDefaults(&Opt)
-
-	v := viper.New()
 	if len(os.Args) > 2 {
 		fmt.Println("Usage: redis-shake [config file]")
 		fmt.Println("Example: ")
@@ -122,24 +119,58 @@ func LoadConfig() *viper.Viper {
 			logger.Error().Msgf("failed to read config file: %v", err)
 			os.Exit(1)
 		}
-		fallback := envWithFallback(string(file))
-		v.SetConfigType("toml")
-		err = v.ReadConfig(bytes.NewReader([]byte(fallback)))
+		v, options, err := ParseConfigBytes(file)
 		if err != nil {
 			logger.Error().Msgf("failed to read config file: %v", err)
 			os.Exit(1)
 		}
+		Opt = options
+		return v
 	} else {
 		logger.Error().Msg("config file not found")
 		os.Exit(1)
 	}
+	return nil
+}
 
-	// unmarshal config
-	err := v.Unmarshal(&Opt)
-	if err != nil {
-		panic(err)
+// ParseConfigBytes parses RedisShake TOML without mutating the global Opt or
+// exiting the process. The control plane uses this to verify generated worker
+// configuration before a task can become READY.
+func ParseConfigBytes(input []byte) (*viper.Viper, ShakeOptions, error) {
+	options := ShakeOptions{}
+	defaults.SetDefaults(&options)
+	v := viper.New()
+	v.SetConfigType("toml")
+	fallback := envWithFallback(string(input))
+	if err := v.ReadConfig(bytes.NewReader([]byte(fallback))); err != nil {
+		return nil, ShakeOptions{}, fmt.Errorf("parse TOML: %w", err)
 	}
-	return v
+	if err := v.Unmarshal(&options); err != nil {
+		return nil, ShakeOptions{}, fmt.Errorf("decode RedisShake options: %w", err)
+	}
+	return v, options, nil
+}
+
+func ValidateConfigSections(v *viper.Viper) error {
+	readers := 0
+	for _, section := range []string{"sync_reader", "scan_reader", "rdb_reader", "aof_reader"} {
+		if v.IsSet(section) {
+			readers++
+		}
+	}
+	if readers != 1 {
+		return fmt.Errorf("configuration must contain exactly one reader section, got %d", readers)
+	}
+	writers := 0
+	for _, section := range []string{"redis_writer", "file_writer"} {
+		if v.IsSet(section) {
+			writers++
+		}
+	}
+	if writers != 1 {
+		return fmt.Errorf("configuration must contain exactly one writer section, got %d", writers)
+	}
+	return nil
 }
 
 // Custom substitution function that returns as is if the environment variable is empty

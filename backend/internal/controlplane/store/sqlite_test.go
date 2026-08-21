@@ -211,6 +211,27 @@ func TestMigrationFromVersionOneAddsSentinelCredentials(t *testing.T) {
 	if _, err := raw.ExecContext(ctx, "INSERT INTO schema_migrations(version) VALUES (1)"); err != nil {
 		t.Fatalf("record v1 migration: %v", err)
 	}
+	migrationTime := time.Now().UTC().Format(timeLayout)
+	for _, values := range [][]string{
+		{"old-source", "Old Source", "127.0.0.1:6379"},
+		{"old-target", "Old Target", "127.0.0.1:6380"},
+	} {
+		if _, err := raw.ExecContext(ctx, `INSERT INTO connections (
+			id, name, topology, address, created_at, updated_at
+		) VALUES (?, ?, 'standalone', ?, ?, ?)`, values[0], values[1], values[2], migrationTime, migrationTime); err != nil {
+			t.Fatalf("insert v1 connection: %v", err)
+		}
+	}
+	if _, err := raw.ExecContext(ctx, `INSERT INTO tasks (
+		id, name, mode, source_connection_id, target_connection_id, state, config_revision, created_at, updated_at
+	) VALUES ('old-task', 'Old Task', 'scan', 'old-source', 'old-target', 'READY', 4, ?, ?)`, migrationTime, migrationTime); err != nil {
+		t.Fatalf("insert v1 task: %v", err)
+	}
+	if _, err := raw.ExecContext(ctx, `INSERT INTO runs (
+		id, task_id, config_revision, state, runtime_dir, started_at
+	) VALUES ('old-run', 'old-task', 4, 'STOPPED', '/tmp/old-run', ?)`, migrationTime); err != nil {
+		t.Fatalf("insert v1 run: %v", err)
+	}
 	if err := raw.Close(); err != nil {
 		t.Fatalf("close v1 database: %v", err)
 	}
@@ -220,6 +241,35 @@ func TestMigrationFromVersionOneAddsSentinelCredentials(t *testing.T) {
 		t.Fatalf("Open(v1 database) error = %v", err)
 	}
 	defer database.Close()
+	oldTask, err := database.GetTask(ctx, "old-task")
+	if err != nil {
+		t.Fatalf("GetTask(after v3 migration) error = %v", err)
+	}
+	if oldTask.SourceConnectionID != "old-source" || oldTask.TargetConnectionID != "old-target" || oldTask.ConfigRevision != 4 {
+		t.Fatalf("migrated task = %+v", oldTask)
+	}
+	if _, err := database.GetRun(ctx, "old-run"); err != nil {
+		t.Fatalf("GetRun(after v3 migration) error = %v", err)
+	}
+	var foreignKeysEnabled int
+	if err := database.db.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&foreignKeysEnabled); err != nil {
+		t.Fatalf("read PRAGMA foreign_keys: %v", err)
+	}
+	if foreignKeysEnabled != 1 {
+		t.Fatalf("foreign_keys = %d after migration, want 1", foreignKeysEnabled)
+	}
+	partialTime := time.Now().UTC()
+	if err := database.CreateTask(ctx, domain.Task{
+		ID:             "partial-draft",
+		Name:           "Partial Draft",
+		Mode:           domain.TaskModeSync,
+		State:          domain.TaskStateDraft,
+		ConfigRevision: 1,
+		CreatedAt:      partialTime,
+		UpdatedAt:      partialTime,
+	}); err != nil {
+		t.Fatalf("CreateTask(partial draft) error = %v", err)
+	}
 	now := time.Now().UTC()
 	connection := domain.Connection{
 		ID:                         "sentinel-connection",

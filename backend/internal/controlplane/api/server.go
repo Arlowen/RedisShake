@@ -9,6 +9,7 @@ import (
 	cpconfig "RedisShake/internal/controlplane/config"
 	"RedisShake/internal/controlplane/connections"
 	"RedisShake/internal/controlplane/store"
+	"RedisShake/internal/controlplane/tasks"
 )
 
 type BuildInfo struct {
@@ -21,16 +22,18 @@ type Server struct {
 	config      cpconfig.Config
 	buildInfo   BuildInfo
 	connections *connections.Service
+	tasks       *tasks.Service
 	startedAt   time.Time
 	handler     http.Handler
 }
 
-func NewServer(database *store.Store, config cpconfig.Config, buildInfo BuildInfo, connectionService *connections.Service) *Server {
+func NewServer(database *store.Store, config cpconfig.Config, buildInfo BuildInfo, connectionService *connections.Service, taskService *tasks.Service) *Server {
 	server := &Server{
 		store:       database,
 		config:      config,
 		buildInfo:   buildInfo,
 		connections: connectionService,
+		tasks:       taskService,
 		startedAt:   time.Now().UTC(),
 	}
 	server.handler = server.routes()
@@ -53,6 +56,12 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("DELETE /api/v1/connections/{id}", s.handleDeleteConnection)
 	mux.HandleFunc("POST /api/v1/connections/test", s.handleTestUnsavedConnection)
 	mux.HandleFunc("POST /api/v1/connections/{id}/test", s.handleTestSavedConnection)
+	mux.HandleFunc("GET /api/v1/tasks", s.handleListTasks)
+	mux.HandleFunc("POST /api/v1/tasks", s.handleCreateTask)
+	mux.HandleFunc("GET /api/v1/tasks/{id}", s.handleGetTask)
+	mux.HandleFunc("PATCH /api/v1/tasks/{id}", s.handleUpdateTask)
+	mux.HandleFunc("DELETE /api/v1/tasks/{id}", s.handleArchiveTask)
+	mux.HandleFunc("POST /api/v1/tasks/{id}/precheck", s.handlePrecheckTask)
 	mux.HandleFunc("/", s.handleNotFound)
 	return securityHeaders(mux)
 }

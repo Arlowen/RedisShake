@@ -15,9 +15,12 @@ The current implementation provides:
 - encrypted Redis connection CRUD for standalone, Sentinel, and cluster topologies;
 - saved and unsaved connection tests with ACL, TLS, topology, and server metadata checks;
 - target write-permission tests using a random temporary Key with a 60-second TTL and best-effort deletion;
+- synchronization task drafts with optimistic config revisions and archive semantics;
+- task-level source/target checks, filter validation, danger warnings, and READY transitions;
+- RedisShake TOML generation that is parsed by the same backend configuration package before a task can become READY;
 - startup validation that prevents opening an existing credential store with a missing or incorrect master key.
 
-Task prechecks, worker process management, and the Web UI are the next implementation phases.
+Worker process management and the Web UI are the next implementation phases.
 
 ## Data layout
 
@@ -79,3 +82,18 @@ POST   /api/v1/connections/{id}/test
 Use `purpose=source` for a read-only connectivity/topology check. Use `purpose=target` to additionally prove write permission. The target check writes a Key named `__redisshake_ui_precheck:<random-id>` with a 60-second TTL and immediately deletes it. If cleanup fails, the API returns a warning and the TTL remains the fallback cleanup.
 
 See `api/openapi.yaml` for request and response schemas.
+
+## Task API
+
+```text
+GET    /api/v1/tasks
+POST   /api/v1/tasks
+GET    /api/v1/tasks/{id}
+PATCH  /api/v1/tasks/{id}
+DELETE /api/v1/tasks/{id}
+POST   /api/v1/tasks/{id}/precheck
+```
+
+Tasks begin in `DRAFT`. The creation wizard can persist the name and mode before source and target connections are selected. Every update requires `expected_revision`, increments `config_revision`, returns the task to `DRAFT`, and invalidates its previous precheck.
+
+Precheck performs source and target connection tests, topology and filter checks, target write verification, and RedisShake TOML generation. It stores only a SHA-256 digest computed from credential-redacted configuration plus structured check results; generated runtime TOML may contain credentials and is never persisted as a precheck result. A task enters `READY` only when there are no failures and all danger warnings, such as `empty_db_before_sync`, are explicitly acknowledged.

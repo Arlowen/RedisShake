@@ -58,19 +58,21 @@ const (
 )
 
 type Task struct {
-	ID                  string    `json:"id"`
-	Name                string    `json:"name"`
-	Description         string    `json:"description,omitempty"`
-	Mode                TaskMode  `json:"mode"`
-	SourceConnectionID  string    `json:"source_connection_id"`
-	TargetConnectionID  string    `json:"target_connection_id"`
-	ReaderOptionsJSON   string    `json:"reader_options"`
-	FilterOptionsJSON   string    `json:"filter_options"`
-	AdvancedOptionsJSON string    `json:"advanced_options"`
-	State               TaskState `json:"state"`
-	ConfigRevision      int64     `json:"config_revision"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	ID                     string     `json:"id"`
+	Name                   string     `json:"name"`
+	Description            string     `json:"description,omitempty"`
+	Mode                   TaskMode   `json:"mode"`
+	SourceConnectionID     string     `json:"source_connection_id"`
+	TargetConnectionID     string     `json:"target_connection_id"`
+	ReaderOptionsJSON      string     `json:"reader_options"`
+	FilterOptionsJSON      string     `json:"filter_options"`
+	AdvancedOptionsJSON    string     `json:"advanced_options"`
+	State                  TaskState  `json:"state"`
+	ConfigRevision         int64      `json:"config_revision"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
+	LastPrecheckedAt       *time.Time `json:"last_prechecked_at,omitempty"`
+	LastPrecheckResultJSON string     `json:"-"`
 }
 
 type RunState string

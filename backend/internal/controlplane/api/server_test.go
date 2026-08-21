@@ -14,6 +14,8 @@ import (
 	"RedisShake/internal/controlplane/connections"
 	"RedisShake/internal/controlplane/secrets"
 	"RedisShake/internal/controlplane/store"
+	"RedisShake/internal/controlplane/taskconfig"
+	"RedisShake/internal/controlplane/tasks"
 )
 
 func TestHealthReadyAndSystemInfo(t *testing.T) {
@@ -111,6 +113,7 @@ func newTestServer(t *testing.T, checkers ...connections.Checker) (*store.Store,
 		checker = checkers[0]
 	}
 	connectionService := connections.NewService(database, cipher, checker)
-	server := NewServer(database, config, BuildInfo{Version: "test-version", GitCommit: "abc123"}, connectionService)
+	taskService := tasks.NewService(database, connectionService, &taskconfig.Renderer{}, config.RuntimeDir)
+	server := NewServer(database, config, BuildInfo{Version: "test-version", GitCommit: "abc123"}, connectionService, taskService)
 	return database, config, server.Handler()
 }

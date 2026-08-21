@@ -14,6 +14,8 @@ import (
 	cpconfig "RedisShake/internal/controlplane/config"
 	"RedisShake/internal/controlplane/connections"
 	"RedisShake/internal/controlplane/store"
+	"RedisShake/internal/controlplane/taskconfig"
+	"RedisShake/internal/controlplane/tasks"
 )
 
 type apiFakeChecker struct {
@@ -23,10 +25,14 @@ type apiFakeChecker struct {
 func (f *apiFakeChecker) Check(_ context.Context, resolved connections.Resolved, purpose connections.TestPurpose) connections.TestResult {
 	f.seen = resolved
 	return connections.TestResult{
-		Success:  true,
-		Purpose:  purpose,
-		Checks:   []connections.CheckItem{{Code: "ping", State: connections.CheckStatePass, Message: "ok"}},
-		TestedAt: time.Date(2026, 8, 21, 13, 0, 0, 0, time.UTC),
+		Success:          true,
+		Purpose:          purpose,
+		EffectiveAddress: resolved.Address,
+		ServerProduct:    "Redis",
+		ServerVersion:    "7.2.0",
+		Role:             "master",
+		Checks:           []connections.CheckItem{{Code: "ping", State: connections.CheckStatePass, Message: "ok"}},
+		TestedAt:         time.Date(2026, 8, 21, 13, 0, 0, 0, time.UTC),
 	}
 }
 
@@ -107,7 +113,8 @@ func TestConnectionCredentialRequiresMasterKey(t *testing.T) {
 	defer database.Close()
 	config := cpconfig.Config{DataDir: root, RuntimeDir: filepath.Join(root, "runtime")}
 	service := connections.NewService(database, nil, nil)
-	handler := NewServer(database, config, BuildInfo{}, service).Handler()
+	taskService := tasks.NewService(database, service, &taskconfig.Renderer{}, config.RuntimeDir)
+	handler := NewServer(database, config, BuildInfo{}, service, taskService).Handler()
 
 	response := performJSONRequest(t, handler, http.MethodPost, "/api/v1/connections", `{
 		"name":"Protected",

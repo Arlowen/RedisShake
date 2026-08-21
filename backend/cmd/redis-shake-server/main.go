@@ -17,6 +17,8 @@ import (
 	"RedisShake/internal/controlplane/redischeck"
 	"RedisShake/internal/controlplane/secrets"
 	"RedisShake/internal/controlplane/store"
+	"RedisShake/internal/controlplane/taskconfig"
+	"RedisShake/internal/controlplane/tasks"
 )
 
 var (
@@ -52,11 +54,12 @@ func run() error {
 	if err := connectionService.ValidateStoredSecrets(ctx); err != nil {
 		return err
 	}
+	taskService := tasks.NewService(database, connectionService, &taskconfig.Renderer{}, config.RuntimeDir)
 
 	apiServer := api.NewServer(database, config, api.BuildInfo{
 		Version:   Version,
 		GitCommit: GitCommit,
-	}, connectionService)
+	}, connectionService, taskService)
 	httpServer := &http.Server{
 		Addr:              config.ListenAddress,
 		Handler:           apiServer.Handler(),

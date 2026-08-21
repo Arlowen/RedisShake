@@ -194,9 +194,143 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/v1/tasks:
+    get:
+      operationId: listTasks
+      summary: List synchronization tasks
+      parameters:
+        - name: include_archived
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Synchronization tasks.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      summary: Create a task draft
+      description: Source and target may be omitted while the creation wizard is incomplete.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskCreate"
+      responses:
+        "201":
+          description: Draft created at config revision 1.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/tasks/{id}:
+    parameters:
+      - $ref: "#/components/parameters/TaskID"
+    get:
+      operationId: getTask
+      summary: Get a synchronization task
+      responses:
+        "200":
+          description: Task and latest precheck result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateTask
+      summary: Update a task draft or ready task
+      description: A successful update increments config_revision, returns the task to DRAFT, and invalidates the previous precheck.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskPatch"
+      responses:
+        "200":
+          description: Updated draft.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Revision conflict or archived task.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: archiveTask
+      summary: Archive a task without deleting history
+      responses:
+        "204":
+          description: Task archived.
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The task has an active run.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/tasks/{id}/precheck:
+    parameters:
+      - $ref: "#/components/parameters/TaskID"
+    post:
+      operationId: precheckTask
+      summary: Run source, target, topology, configuration, and danger checks
+      description: The target check writes and deletes a random Key with a 60-second TTL. The task becomes READY only when all checks pass and warnings are acknowledged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrecheckRequest"
+      responses:
+        "200":
+          description: Structured precheck result. Validation failures are represented by ready=false.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrecheckResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Revision conflict or archived task.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   parameters:
     ConnectionID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    TaskID:
       name: id
       in: path
       required: true
@@ -461,5 +595,171 @@ components:
           items:
             $ref: "#/components/schemas/CheckItem"
         tested_at:
+          type: string
+          format: date-time
+    SyncReaderOptions:
+      type: object
+      required: [sync_rdb, sync_aof, prefer_replica, try_diskless]
+      properties:
+        sync_rdb:
+          type: boolean
+        sync_aof:
+          type: boolean
+        prefer_replica:
+          type: boolean
+        try_diskless:
+          type: boolean
+    ScanReaderOptions:
+      type: object
+      required: [dbs, scan, ksn, count, prefer_replica, skip_unknown_type]
+      properties:
+        dbs:
+          type: array
+          items:
+            type: integer
+        scan:
+          type: boolean
+        ksn:
+          type: boolean
+        count:
+          type: integer
+          minimum: 1
+        prefer_replica:
+          type: boolean
+        skip_unknown_type:
+          type: array
+          items:
+            type: string
+    FilterOptions:
+      type: object
+      properties:
+        allow_keys: {type: array, items: {type: string}}
+        allow_key_prefix: {type: array, items: {type: string}}
+        allow_key_suffix: {type: array, items: {type: string}}
+        allow_key_regex: {type: array, items: {type: string}}
+        block_keys: {type: array, items: {type: string}}
+        block_key_prefix: {type: array, items: {type: string}}
+        block_key_suffix: {type: array, items: {type: string}}
+        block_key_regex: {type: array, items: {type: string}}
+        allow_db: {type: array, items: {type: integer}}
+        block_db: {type: array, items: {type: integer}}
+        allow_command: {type: array, items: {type: string}}
+        block_command: {type: array, items: {type: string}}
+        allow_command_group: {type: array, items: {type: string}}
+        block_command_group: {type: array, items: {type: string}}
+        function: {type: string}
+    AdvancedOptions:
+      type: object
+      properties:
+        rdb_restore_command_behavior:
+          type: string
+          enum: [panic, rewrite, skip]
+        pipeline_count_limit:
+          type: integer
+          minimum: 1
+        target_redis_max_qps:
+          type: integer
+          minimum: 1
+          maximum: 300000
+        target_redis_client_max_querybuf_len:
+          type: integer
+          minimum: 1
+        target_redis_proto_max_bulk_len:
+          type: integer
+          minimum: 1048576
+        empty_db_before_sync:
+          type: boolean
+    TaskSpec:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 128
+        description:
+          type: string
+        mode:
+          type: string
+          enum: [sync, scan]
+        source_connection_id:
+          type: string
+        target_connection_id:
+          type: string
+        sync_reader:
+          $ref: "#/components/schemas/SyncReaderOptions"
+        scan_reader:
+          $ref: "#/components/schemas/ScanReaderOptions"
+        filter:
+          $ref: "#/components/schemas/FilterOptions"
+        advanced:
+          $ref: "#/components/schemas/AdvancedOptions"
+    TaskCreate:
+      allOf:
+        - type: object
+          required: [name, mode]
+        - $ref: "#/components/schemas/TaskSpec"
+    TaskPatch:
+      allOf:
+        - type: object
+          required: [expected_revision]
+          properties:
+            expected_revision:
+              type: integer
+              minimum: 1
+        - $ref: "#/components/schemas/TaskSpec"
+      description: Only supplied TaskSpec fields are changed.
+    Task:
+      type: object
+      required: [id, spec, state, config_revision, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        spec:
+          $ref: "#/components/schemas/TaskSpec"
+        state:
+          type: string
+          enum: [DRAFT, READY, ARCHIVED]
+        config_revision:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_prechecked_at:
+          type: [string, "null"]
+          format: date-time
+        last_precheck_result:
+          oneOf:
+            - $ref: "#/components/schemas/PrecheckResult"
+            - type: "null"
+    PrecheckRequest:
+      type: object
+      required: [expected_revision]
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 1
+        acknowledge_warnings:
+          type: boolean
+          default: false
+    PrecheckResult:
+      type: object
+      required: [task_id, config_revision, ready, checks, checked_at]
+      properties:
+        task_id:
+          type: string
+        config_revision:
+          type: integer
+        ready:
+          type: boolean
+        config_digest:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CheckItem"
+        checked_at:
           type: string
           format: date-time

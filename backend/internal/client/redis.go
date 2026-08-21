@@ -25,9 +25,11 @@ type Redis struct {
 }
 
 type TlsConfig struct {
-	CACertFilePath string `mapstructure:"ca_cert" default:""`
-	CertFilePath   string `mapstructure:"cert" default:""`
-	KeyFilePath    string `mapstructure:"key" default:""`
+	CACertFilePath     string `mapstructure:"ca_cert" default:""`
+	CertFilePath       string `mapstructure:"cert" default:""`
+	KeyFilePath        string `mapstructure:"key" default:""`
+	ServerName         string `mapstructure:"server_name" default:""`
+	InsecureSkipVerify *bool  `mapstructure:"insecure_skip_verify"`
 }
 
 func NewRedisClient(ctx context.Context, address string, username string, password string, Tls bool, tlsConfig TlsConfig, replica bool) *Redis {
@@ -90,26 +92,40 @@ func NewRedisClient(ctx context.Context, address string, username string, passwo
 }
 
 func getTlsConfig(tlsConfig TlsConfig) *tls.Config {
-	if tlsConfig.CACertFilePath == "" || tlsConfig.CertFilePath == "" || tlsConfig.KeyFilePath == "" {
-		return &tls.Config{InsecureSkipVerify: true}
+	insecureSkipVerify := true
+	if tlsConfig.InsecureSkipVerify != nil {
+		insecureSkipVerify = *tlsConfig.InsecureSkipVerify
 	}
-
-	// Use mutual authentication (mTLS)
-	cert, err := tls.LoadX509KeyPair(tlsConfig.CertFilePath, tlsConfig.KeyFilePath)
-	if err != nil {
-		log.Panicf("load tls cert failed. cert=[%s], key=[%s], err=[%v]", tlsConfig.CertFilePath, tlsConfig.KeyFilePath, err)
+	config := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		ServerName:         tlsConfig.ServerName,
+		InsecureSkipVerify: insecureSkipVerify,
 	}
-	caCert, err := os.ReadFile(tlsConfig.CACertFilePath)
-	if err != nil {
-		log.Panicf("read ca cert failed. ca_cert=[%s], err=[%v]", tlsConfig.CACertFilePath, err)
+	if tlsConfig.CACertFilePath != "" {
+		caCert, err := os.ReadFile(tlsConfig.CACertFilePath)
+		if err != nil {
+			log.Panicf("read ca cert failed. ca_cert=[%s], err=[%v]", tlsConfig.CACertFilePath, err)
+		}
+		caCertPool, err := x509.SystemCertPool()
+		if err != nil || caCertPool == nil {
+			caCertPool = x509.NewCertPool()
+		}
+		if !caCertPool.AppendCertsFromPEM(caCert) {
+			log.Panicf("parse ca cert failed. ca_cert=[%s]", tlsConfig.CACertFilePath)
+		}
+		config.RootCAs = caCertPool
 	}
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-	return &tls.Config{
-		RootCAs:            caCertPool,
-		Certificates:       []tls.Certificate{cert},
-		InsecureSkipVerify: true,
+	if (tlsConfig.CertFilePath == "") != (tlsConfig.KeyFilePath == "") {
+		log.Panicf("tls cert and key must be configured together")
 	}
+	if tlsConfig.CertFilePath != "" {
+		cert, err := tls.LoadX509KeyPair(tlsConfig.CertFilePath, tlsConfig.KeyFilePath)
+		if err != nil {
+			log.Panicf("load tls cert failed. cert=[%s], key=[%s], err=[%v]", tlsConfig.CertFilePath, tlsConfig.KeyFilePath, err)
+		}
+		config.Certificates = []tls.Certificate{cert}
+	}
+	return config
 }
 
 type Replica struct {
