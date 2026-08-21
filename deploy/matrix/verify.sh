@@ -33,6 +33,7 @@ openssl x509 -req -days 1 \
     -extfile "$MATRIX_CERT_DIR/server.ext" \
     -out "$MATRIX_CERT_DIR/server.crt" >/dev/null 2>&1
 chmod 0600 "$MATRIX_CERT_DIR"/*
+chmod 0644 "$MATRIX_CERT_DIR/ca.crt" "$MATRIX_CERT_DIR/server.crt" "$MATRIX_CERT_DIR/server.key"
 
 docker compose -f "$COMPOSE_FILE" up -d --wait
 

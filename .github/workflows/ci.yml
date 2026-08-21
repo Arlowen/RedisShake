@@ -19,6 +19,7 @@ jobs:
                 uses: actions/setup-go@v6
                 with:
                     go-version-file: backend/go.mod
+                    cache-dependency-path: backend/go.sum
 
             -   name: Setup Node with cache
                 uses: actions/setup-node@v6
@@ -79,7 +80,7 @@ jobs:
 
             -   name: Upload Playwright report
                 if: ${{ !cancelled() }}
-                uses: actions/upload-artifact@v5
+                uses: actions/upload-artifact@v6
                 with:
                     name: playwright-report
                     path: frontend/playwright-report/
@@ -108,6 +109,7 @@ jobs:
                 uses: actions/setup-go@v6
                 with:
                     go-version-file: backend/go.mod
+                    cache-dependency-path: backend/go.sum
 
             -   name: Cache Redis binary
                 id: cache-redis
@@ -186,6 +188,7 @@ jobs:
                 uses: actions/setup-go@v6
                 with:
                     go-version-file: backend/go.mod
+                    cache-dependency-path: backend/go.sum
 
             -   name: Cache Valkey binary
                 id: cache-valkey
