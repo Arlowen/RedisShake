@@ -24,7 +24,7 @@ jobs:
             -   name: Setup Golang with cache
                 uses: actions/setup-go@v6
                 with:
-                    go-version-file: go.mod
+                    go-version-file: backend/go.mod
 
             -   name: "Draft release"
                 id: "release"
@@ -34,6 +34,7 @@ jobs:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
             -   name: Build
+                working-directory: backend
                 run: |
                     # Extract version from git tag or use release drafter output
                     if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/* ]]; then
@@ -47,6 +48,7 @@ jobs:
                     bash build.sh dist
 
             -   name: Verify build artifacts
+                working-directory: backend
                 run: |
                     echo "Checking for build artifacts..."
                     ls -la ./bin/
@@ -62,6 +64,7 @@ jobs:
                     done
     
             -   name: Prepare versioned assets
+                working-directory: backend
                 run: |
                     # Extract version from git tag or use release drafter output
                     if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/* ]]; then
@@ -96,11 +99,11 @@ jobs:
                     draft: ${{ github.event_name != 'push' }}
                     prerelease: false
                     files: |
-                        ./bin/redis-shake-${{ github.event_name == 'push' && github.ref_name || steps.release.outputs.tag_name }}-linux-amd64.tar.gz
-                        ./bin/redis-shake-${{ github.event_name == 'push' && github.ref_name || steps.release.outputs.tag_name }}-linux-arm64.tar.gz
-                        ./bin/redis-shake-${{ github.event_name == 'push' && github.ref_name || steps.release.outputs.tag_name }}-darwin-amd64.tar.gz
-                        ./bin/redis-shake-${{ github.event_name == 'push' && github.ref_name || steps.release.outputs.tag_name }}-darwin-arm64.tar.gz
-                        ./bin/redis-shake-${{ github.event_name == 'push' && github.ref_name || steps.release.outputs.tag_name }}-windows-amd64.tar.gz
-                        ./bin/redis-shake-${{ github.event_name == 'push' && github.ref_name || steps.release.outputs.tag_name }}-windows-arm64.tar.gz
+                        ./backend/bin/redis-shake-${{ github.event_name == 'push' && github.ref_name || steps.release.outputs.tag_name }}-linux-amd64.tar.gz
+                        ./backend/bin/redis-shake-${{ github.event_name == 'push' && github.ref_name || steps.release.outputs.tag_name }}-linux-arm64.tar.gz
+                        ./backend/bin/redis-shake-${{ github.event_name == 'push' && github.ref_name || steps.release.outputs.tag_name }}-darwin-amd64.tar.gz
+                        ./backend/bin/redis-shake-${{ github.event_name == 'push' && github.ref_name || steps.release.outputs.tag_name }}-darwin-arm64.tar.gz
+                        ./backend/bin/redis-shake-${{ github.event_name == 'push' && github.ref_name || steps.release.outputs.tag_name }}-windows-amd64.tar.gz
+                        ./backend/bin/redis-shake-${{ github.event_name == 'push' && github.ref_name || steps.release.outputs.tag_name }}-windows-arm64.tar.gz
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

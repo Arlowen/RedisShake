@@ -48,4 +48,4 @@ Filters always run before the Lua hook. Commands blocked by the rule engine neve
 
 ## advanced Configuration
 
-Refer to the [shake.toml configuration file](https://github.com/tair-opensource/RedisShake/blob/v4/shake.toml).
+Refer to the [shake.toml configuration file](https://github.com/Arlowen/RedisShake/blob/v4/backend/shake.toml).

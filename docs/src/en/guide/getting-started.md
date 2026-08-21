@@ -11,8 +11,8 @@ Directly download the binary package from [Release](https://github.com/tair-open
 To compile from the source code, make sure you have set up the Golang environment on your local machine:
 
 ```shell
-git clone https://github.com/alibaba/RedisShake
-cd RedisShake
+git clone https://github.com/Arlowen/RedisShake
+cd RedisShake/backend
 sh build.sh
 ```
 

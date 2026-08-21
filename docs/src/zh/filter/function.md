@@ -56,7 +56,7 @@ address = "127.0.0.1:6380"
 | --- | --- | --- | --- |
 | `DB` | number | `1` | 命令所属的数据库 |
 | `CMD` | string | `"XGROUP-DELCONSUMER"` | 命令名称 |
-| `GROUP` | string | `"LIST"` | 命令所属的组，符合 [Command key specifications](https://redis.io/docs/reference/key-specs/)，可在 [commands](https://github.com/tair-opensource/RedisShake/tree/v4/scripts/commands) 中查看 |
+| `GROUP` | string | `"LIST"` | 命令所属的组，符合 [Command key specifications](https://redis.io/docs/reference/key-specs/)，可在 [commands](https://github.com/Arlowen/RedisShake/tree/v4/backend/scripts/commands) 中查看 |
 | `KEYS` | table | `{"key1", "key2"}` | 命令包含的所有 Key |
 | `KEY_INDEXES` | table | `{2, 4}` | 所有 Key 在 `ARGV` 中的索引 |
 | `SLOTS` | table | `{9189, 4998}` | 当前命令所有 Key 的 slot（集群模式） |

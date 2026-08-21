@@ -11,8 +11,8 @@
 要从源代码编译，确保您在本地机器上设置了 Golang 环境：
 
 ```shell
-git clone https://github.com/alibaba/RedisShake
-cd RedisShake
+git clone https://github.com/Arlowen/RedisShake
+cd RedisShake/backend
 sh build.sh
 ```
 

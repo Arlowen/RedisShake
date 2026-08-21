@@ -29,8 +29,8 @@ docker run --network host \
 ### Option 3: Build from Source
 
 ```shell
-git clone https://github.com/tair-opensource/RedisShake
-cd RedisShake
+git clone https://github.com/Arlowen/RedisShake
+cd RedisShake/backend
 sh build.sh
 ```
 

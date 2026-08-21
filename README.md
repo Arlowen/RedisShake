@@ -50,10 +50,16 @@ docker run --network host \
 > **Prerequisite:** Go must be installed and available in your system before running the build script.
    
 ```shell
-git clone https://github.com/tair-opensource/RedisShake
-cd RedisShake
+git clone https://github.com/Arlowen/RedisShake
+cd RedisShake/backend
 sh build.sh
 ```
+
+## Repository Structure
+
+- `backend/`: RedisShake Go service, build files, runtime configuration, and tests.
+- `frontend/`: Web management console.
+- `docs/`: Project documentation site.
 
 ### For LLM Agents
 
@@ -61,7 +67,7 @@ Copy and paste this prompt to your LLM agent (Claude Code, Cursor, etc.):
 
 ```
 Read the RedisShake usage guide and help me with my task:
-https://raw.githubusercontent.com/tair-opensource/RedisShake/v4/README_FOR_AGENTS.md
+https://raw.githubusercontent.com/Arlowen/RedisShake/v4/README_FOR_AGENTS.md
 ```
 
 ## How to Use RedisShake
