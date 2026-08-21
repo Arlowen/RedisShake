@@ -64,4 +64,14 @@ var migrations = []migration{
 			`CREATE INDEX idx_runs_state ON runs(state)`,
 		},
 	},
+	{
+		version: 2,
+		statements: []string{
+			`ALTER TABLE connections ADD COLUMN sentinel_address TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE connections ADD COLUMN sentinel_username TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE connections ADD COLUMN sentinel_password_ciphertext TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE connections ADD COLUMN sentinel_tls_enabled INTEGER NOT NULL DEFAULT 0 CHECK (sentinel_tls_enabled IN (0, 1))`,
+			`ALTER TABLE connections ADD COLUMN sentinel_tls_config_json TEXT NOT NULL DEFAULT '{}'`,
+		},
+	},
 }

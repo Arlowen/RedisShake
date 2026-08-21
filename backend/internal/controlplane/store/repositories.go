@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"RedisShake/internal/controlplane/domain"
@@ -15,9 +16,10 @@ const timeLayout = time.RFC3339Nano
 func (s *Store) CreateConnection(ctx context.Context, connection domain.Connection) error {
 	_, err := s.db.ExecContext(ctx, `INSERT INTO connections (
 		id, name, topology, address, username, password_ciphertext,
-		tls_enabled, tls_config_json, sentinel_master_name,
+		tls_enabled, tls_config_json, sentinel_address, sentinel_master_name,
+		sentinel_username, sentinel_password_ciphertext, sentinel_tls_enabled, sentinel_tls_config_json,
 		created_at, updated_at, last_tested_at, last_test_result_json
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		connection.ID,
 		connection.Name,
 		connection.Topology,
@@ -26,14 +28,19 @@ func (s *Store) CreateConnection(ctx context.Context, connection domain.Connecti
 		connection.PasswordCiphertext,
 		boolToInt(connection.TLSEnabled),
 		emptyJSON(connection.TLSConfigJSON),
+		connection.SentinelAddress,
 		connection.SentinelMasterName,
+		connection.SentinelUsername,
+		connection.SentinelPasswordCiphertext,
+		boolToInt(connection.SentinelTLSEnabled),
+		emptyJSON(connection.SentinelTLSConfigJSON),
 		formatTime(connection.CreatedAt),
 		formatTime(connection.UpdatedAt),
 		formatOptionalTime(connection.LastTestedAt),
 		connection.LastTestResultJSON,
 	)
 	if err != nil {
-		return fmt.Errorf("create connection: %w", err)
+		return fmt.Errorf("create connection: %w", mapWriteError(err))
 	}
 	return nil
 }
@@ -41,7 +48,8 @@ func (s *Store) CreateConnection(ctx context.Context, connection domain.Connecti
 func (s *Store) GetConnection(ctx context.Context, id string) (domain.Connection, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT
 		id, name, topology, address, username, password_ciphertext,
-		tls_enabled, tls_config_json, sentinel_master_name,
+		tls_enabled, tls_config_json, sentinel_address, sentinel_master_name,
+		sentinel_username, sentinel_password_ciphertext, sentinel_tls_enabled, sentinel_tls_config_json,
 		created_at, updated_at, last_tested_at, last_test_result_json
 		FROM connections WHERE id = ?`, id)
 	return scanConnection(row)
@@ -50,7 +58,8 @@ func (s *Store) GetConnection(ctx context.Context, id string) (domain.Connection
 func (s *Store) ListConnections(ctx context.Context) ([]domain.Connection, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT
 		id, name, topology, address, username, password_ciphertext,
-		tls_enabled, tls_config_json, sentinel_master_name,
+		tls_enabled, tls_config_json, sentinel_address, sentinel_master_name,
+		sentinel_username, sentinel_password_ciphertext, sentinel_tls_enabled, sentinel_tls_config_json,
 		created_at, updated_at, last_tested_at, last_test_result_json
 		FROM connections ORDER BY name COLLATE NOCASE`)
 	if err != nil {
@@ -70,6 +79,80 @@ func (s *Store) ListConnections(ctx context.Context) ([]domain.Connection, error
 		return nil, fmt.Errorf("iterate connections: %w", err)
 	}
 	return connections, nil
+}
+
+func (s *Store) UpdateConnection(ctx context.Context, connection domain.Connection) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE connections SET
+		name = ?, topology = ?, address = ?, username = ?, password_ciphertext = ?,
+		tls_enabled = ?, tls_config_json = ?, sentinel_address = ?, sentinel_master_name = ?,
+		sentinel_username = ?, sentinel_password_ciphertext = ?, sentinel_tls_enabled = ?, sentinel_tls_config_json = ?,
+		updated_at = ?, last_tested_at = ?, last_test_result_json = ?
+		WHERE id = ?`,
+		connection.Name,
+		connection.Topology,
+		connection.Address,
+		connection.Username,
+		connection.PasswordCiphertext,
+		boolToInt(connection.TLSEnabled),
+		emptyJSON(connection.TLSConfigJSON),
+		connection.SentinelAddress,
+		connection.SentinelMasterName,
+		connection.SentinelUsername,
+		connection.SentinelPasswordCiphertext,
+		boolToInt(connection.SentinelTLSEnabled),
+		emptyJSON(connection.SentinelTLSConfigJSON),
+		formatTime(connection.UpdatedAt),
+		formatOptionalTime(connection.LastTestedAt),
+		connection.LastTestResultJSON,
+		connection.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("update connection: %w", mapWriteError(err))
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read updated connection count: %w", err)
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) DeleteConnection(ctx context.Context, id string) error {
+	result, err := s.db.ExecContext(ctx, "DELETE FROM connections WHERE id = ?", id)
+	if err != nil {
+		mapped := mapWriteError(err)
+		if errors.Is(mapped, ErrConflict) {
+			return ErrInUse
+		}
+		return fmt.Errorf("delete connection: %w", mapped)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read deleted connection count: %w", err)
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) UpdateConnectionTestResult(ctx context.Context, id string, testedAt time.Time, resultJSON string) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE connections
+		SET last_tested_at = ?, last_test_result_json = ?, updated_at = ?
+		WHERE id = ?`, formatTime(testedAt), resultJSON, formatTime(testedAt), id)
+	if err != nil {
+		return fmt.Errorf("update connection test result: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read tested connection count: %w", err)
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (s *Store) CreateTask(ctx context.Context, task domain.Task) error {
@@ -175,7 +258,7 @@ type scanner interface {
 
 func scanConnection(row scanner) (domain.Connection, error) {
 	var connection domain.Connection
-	var tlsEnabled int
+	var tlsEnabled, sentinelTLSEnabled int
 	var createdAt, updatedAt string
 	var lastTestedAt sql.NullString
 	err := row.Scan(
@@ -187,7 +270,12 @@ func scanConnection(row scanner) (domain.Connection, error) {
 		&connection.PasswordCiphertext,
 		&tlsEnabled,
 		&connection.TLSConfigJSON,
+		&connection.SentinelAddress,
 		&connection.SentinelMasterName,
+		&connection.SentinelUsername,
+		&connection.SentinelPasswordCiphertext,
+		&sentinelTLSEnabled,
+		&connection.SentinelTLSConfigJSON,
 		&createdAt,
 		&updatedAt,
 		&lastTestedAt,
@@ -197,6 +285,7 @@ func scanConnection(row scanner) (domain.Connection, error) {
 		return domain.Connection{}, mapNotFound(err)
 	}
 	connection.TLSEnabled = tlsEnabled == 1
+	connection.SentinelTLSEnabled = sentinelTLSEnabled == 1
 	if connection.CreatedAt, err = parseTime(createdAt); err != nil {
 		return domain.Connection{}, err
 	}
@@ -346,6 +435,17 @@ func emptyJSON(value string) string {
 func mapNotFound(err error) error {
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
+	}
+	return err
+}
+
+func mapWriteError(err error) error {
+	if err == nil {
+		return nil
+	}
+	message := strings.ToLower(err.Error())
+	if strings.Contains(message, "unique constraint failed") || strings.Contains(message, "foreign key constraint failed") {
+		return fmt.Errorf("%w: %s", ErrConflict, err.Error())
 	}
 	return err
 }

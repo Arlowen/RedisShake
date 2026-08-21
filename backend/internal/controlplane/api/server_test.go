@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	cpconfig "RedisShake/internal/controlplane/config"
+	"RedisShake/internal/controlplane/connections"
+	"RedisShake/internal/controlplane/secrets"
 	"RedisShake/internal/controlplane/store"
 )
 
@@ -86,7 +88,7 @@ func TestUnknownRouteReturnsJSON(t *testing.T) {
 	}
 }
 
-func newTestServer(t *testing.T) (*store.Store, cpconfig.Config, http.Handler) {
+func newTestServer(t *testing.T, checkers ...connections.Checker) (*store.Store, cpconfig.Config, http.Handler) {
 	t.Helper()
 	root := t.TempDir()
 	database, err := store.Open(context.Background(), filepath.Join(root, "control-plane.db"))
@@ -100,6 +102,15 @@ func newTestServer(t *testing.T) (*store.Store, cpconfig.Config, http.Handler) {
 		RuntimeDir:    filepath.Join(root, "runtime"),
 		MasterKey:     bytes.Repeat([]byte{0x61}, 32),
 	}
-	server := NewServer(database, config, BuildInfo{Version: "test-version", GitCommit: "abc123"})
+	cipher, err := secrets.NewCipher(config.MasterKey)
+	if err != nil {
+		t.Fatalf("secrets.NewCipher() error = %v", err)
+	}
+	var checker connections.Checker
+	if len(checkers) > 0 {
+		checker = checkers[0]
+	}
+	connectionService := connections.NewService(database, cipher, checker)
+	server := NewServer(database, config, BuildInfo{Version: "test-version", GitCommit: "abc123"}, connectionService)
 	return database, config, server.Handler()
 }

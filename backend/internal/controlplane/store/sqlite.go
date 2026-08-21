@@ -11,7 +11,11 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-var ErrNotFound = errors.New("record not found")
+var (
+	ErrNotFound = errors.New("record not found")
+	ErrConflict = errors.New("record conflicts with existing data")
+	ErrInUse    = errors.New("record is still in use")
+)
 
 type Store struct {
 	db   *sql.DB
@@ -127,7 +131,12 @@ func (s *Store) Path() string {
 func (s *Store) HasEncryptedSecrets(ctx context.Context) (bool, error) {
 	var exists int
 	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(
-		SELECT 1 FROM connections WHERE password_ciphertext <> '' LIMIT 1
+		SELECT 1 FROM connections
+		WHERE password_ciphertext <> ''
+		   OR sentinel_password_ciphertext <> ''
+		   OR tls_config_json LIKE '%v1:%'
+		   OR sentinel_tls_config_json LIKE '%v1:%'
+		LIMIT 1
 	)`).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("check encrypted secrets: %w", err)

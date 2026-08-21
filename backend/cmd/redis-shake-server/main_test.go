@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"RedisShake/internal/controlplane/connections"
 	"RedisShake/internal/controlplane/domain"
 	"RedisShake/internal/controlplane/secrets"
 	"RedisShake/internal/controlplane/store"
@@ -44,13 +45,21 @@ func TestValidateStoredSecrets(t *testing.T) {
 		t.Fatalf("CreateConnection() error = %v", err)
 	}
 
-	if err := validateStoredSecrets(ctx, database, nil); err == nil || !strings.Contains(err.Error(), "required") {
-		t.Fatalf("validateStoredSecrets(nil) error = %v", err)
+	if _, err := prepareSecretCipher(ctx, database, nil); err == nil || !strings.Contains(err.Error(), "required") {
+		t.Fatalf("prepareSecretCipher(nil) error = %v", err)
 	}
-	if err := validateStoredSecrets(ctx, database, bytes.Repeat([]byte{0x42}, 32)); err == nil || !strings.Contains(err.Error(), "cannot decrypt") {
-		t.Fatalf("validateStoredSecrets(wrong key) error = %v", err)
+	wrongCipher, err := prepareSecretCipher(ctx, database, bytes.Repeat([]byte{0x42}, 32))
+	if err != nil {
+		t.Fatalf("prepareSecretCipher(wrong key) error = %v", err)
 	}
-	if err := validateStoredSecrets(ctx, database, key); err != nil {
-		t.Fatalf("validateStoredSecrets(correct key) error = %v", err)
+	if err := connections.NewService(database, wrongCipher, nil).ValidateStoredSecrets(ctx); err == nil {
+		t.Fatal("ValidateStoredSecrets(wrong key) error = nil")
+	}
+	correctCipher, err := prepareSecretCipher(ctx, database, key)
+	if err != nil {
+		t.Fatalf("prepareSecretCipher(correct key) error = %v", err)
+	}
+	if err := connections.NewService(database, correctCipher, nil).ValidateStoredSecrets(ctx); err != nil {
+		t.Fatalf("ValidateStoredSecrets(correct key) error = %v", err)
 	}
 }

@@ -13,6 +13,8 @@ import (
 
 	"RedisShake/internal/controlplane/api"
 	cpconfig "RedisShake/internal/controlplane/config"
+	"RedisShake/internal/controlplane/connections"
+	"RedisShake/internal/controlplane/redischeck"
 	"RedisShake/internal/controlplane/secrets"
 	"RedisShake/internal/controlplane/store"
 )
@@ -42,14 +44,19 @@ func run() error {
 	}
 	defer database.Close()
 
-	if err := validateStoredSecrets(ctx, database, config.MasterKey); err != nil {
+	secretCipher, err := prepareSecretCipher(ctx, database, config.MasterKey)
+	if err != nil {
+		return err
+	}
+	connectionService := connections.NewService(database, secretCipher, &redischeck.Checker{Timeout: 5 * time.Second})
+	if err := connectionService.ValidateStoredSecrets(ctx); err != nil {
 		return err
 	}
 
 	apiServer := api.NewServer(database, config, api.BuildInfo{
 		Version:   Version,
 		GitCommit: GitCommit,
-	})
+	}, connectionService)
 	httpServer := &http.Server{
 		Addr:              config.ListenAddress,
 		Handler:           apiServer.Handler(),
@@ -83,32 +90,20 @@ func run() error {
 	}
 }
 
-func validateStoredSecrets(ctx context.Context, database *store.Store, key []byte) error {
+func prepareSecretCipher(ctx context.Context, database *store.Store, key []byte) (*secrets.Cipher, error) {
 	hasSecrets, err := database.HasEncryptedSecrets(ctx)
 	if err != nil {
-		return err
-	}
-	if !hasSecrets {
-		return nil
+		return nil, err
 	}
 	if len(key) == 0 {
-		return errors.New("REDISSHAKE_MASTER_KEY is required because encrypted connection credentials already exist")
+		if hasSecrets {
+			return nil, errors.New("REDISSHAKE_MASTER_KEY is required because encrypted connection credentials already exist")
+		}
+		return nil, nil
 	}
 	cipher, err := secrets.NewCipher(key)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	connections, err := database.ListConnections(ctx)
-	if err != nil {
-		return err
-	}
-	for _, connection := range connections {
-		if connection.PasswordCiphertext == "" {
-			continue
-		}
-		if _, err := cipher.Decrypt(connection.PasswordCiphertext); err != nil {
-			return fmt.Errorf("REDISSHAKE_MASTER_KEY cannot decrypt stored connection %q", connection.ID)
-		}
-	}
-	return nil
+	return cipher, nil
 }

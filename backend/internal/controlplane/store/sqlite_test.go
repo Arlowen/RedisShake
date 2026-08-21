@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"os"
 	"path/filepath"
@@ -186,5 +187,60 @@ func TestStoreReturnsNotFound(t *testing.T) {
 
 	if _, err := database.GetConnection(ctx, "missing"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("GetConnection() error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestMigrationFromVersionOneAddsSentinelCredentials(t *testing.T) {
+	ctx := context.Background()
+	databasePath := filepath.Join(t.TempDir(), "control-plane.db")
+	raw, err := sql.Open("sqlite", databasePath)
+	if err != nil {
+		t.Fatalf("sql.Open() error = %v", err)
+	}
+	if _, err := raw.ExecContext(ctx, `CREATE TABLE schema_migrations (
+		version INTEGER PRIMARY KEY,
+		applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`); err != nil {
+		t.Fatalf("create schema_migrations: %v", err)
+	}
+	for _, statement := range migrations[0].statements {
+		if _, err := raw.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("apply v1 statement: %v", err)
+		}
+	}
+	if _, err := raw.ExecContext(ctx, "INSERT INTO schema_migrations(version) VALUES (1)"); err != nil {
+		t.Fatalf("record v1 migration: %v", err)
+	}
+	if err := raw.Close(); err != nil {
+		t.Fatalf("close v1 database: %v", err)
+	}
+
+	database, err := Open(ctx, databasePath)
+	if err != nil {
+		t.Fatalf("Open(v1 database) error = %v", err)
+	}
+	defer database.Close()
+	now := time.Now().UTC()
+	connection := domain.Connection{
+		ID:                         "sentinel-connection",
+		Name:                       "Sentinel Redis",
+		Topology:                   domain.TopologySentinel,
+		SentinelAddress:            "127.0.0.1:26379",
+		SentinelMasterName:         "mymaster",
+		SentinelUsername:           "sentinel-user",
+		SentinelPasswordCiphertext: "v1:test-ciphertext",
+		SentinelTLSConfigJSON:      `{}`,
+		CreatedAt:                  now,
+		UpdatedAt:                  now,
+	}
+	if err := database.CreateConnection(ctx, connection); err != nil {
+		t.Fatalf("CreateConnection(after v2 migration) error = %v", err)
+	}
+	stored, err := database.GetConnection(ctx, connection.ID)
+	if err != nil {
+		t.Fatalf("GetConnection(after v2 migration) error = %v", err)
+	}
+	if stored.SentinelAddress != connection.SentinelAddress || stored.SentinelUsername != connection.SentinelUsername {
+		t.Fatalf("stored sentinel fields = %+v", stored)
 	}
 }

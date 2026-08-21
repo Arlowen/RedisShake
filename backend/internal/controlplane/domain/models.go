@@ -18,19 +18,24 @@ func (t Topology) Valid() bool {
 }
 
 type Connection struct {
-	ID                 string     `json:"id"`
-	Name               string     `json:"name"`
-	Topology           Topology   `json:"topology"`
-	Address            string     `json:"address"`
-	Username           string     `json:"username,omitempty"`
-	PasswordCiphertext string     `json:"-"`
-	TLSEnabled         bool       `json:"tls_enabled"`
-	TLSConfigJSON      string     `json:"tls_config"`
-	SentinelMasterName string     `json:"sentinel_master_name,omitempty"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
-	LastTestedAt       *time.Time `json:"last_tested_at,omitempty"`
-	LastTestResultJSON string     `json:"last_test_result,omitempty"`
+	ID                         string     `json:"id"`
+	Name                       string     `json:"name"`
+	Topology                   Topology   `json:"topology"`
+	Address                    string     `json:"address"`
+	Username                   string     `json:"username,omitempty"`
+	PasswordCiphertext         string     `json:"-"`
+	TLSEnabled                 bool       `json:"tls_enabled"`
+	TLSConfigJSON              string     `json:"-"`
+	SentinelAddress            string     `json:"sentinel_address,omitempty"`
+	SentinelMasterName         string     `json:"sentinel_master_name,omitempty"`
+	SentinelUsername           string     `json:"sentinel_username,omitempty"`
+	SentinelPasswordCiphertext string     `json:"-"`
+	SentinelTLSEnabled         bool       `json:"sentinel_tls_enabled"`
+	SentinelTLSConfigJSON      string     `json:"-"`
+	CreatedAt                  time.Time  `json:"created_at"`
+	UpdatedAt                  time.Time  `json:"updated_at"`
+	LastTestedAt               *time.Time `json:"last_tested_at,omitempty"`
+	LastTestResultJSON         string     `json:"-"`
 }
 
 type TaskMode string
