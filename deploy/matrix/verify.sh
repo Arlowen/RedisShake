@@ -8,10 +8,16 @@ MATRIX_CERT_DIR=$(mktemp -d /tmp/redisshake-matrix-certs.XXXXXX)
 export MATRIX_CERT_DIR
 
 cleanup() {
+	status=$?
+	trap - EXIT INT TERM
+	if [ "$status" -ne 0 ]; then
+		docker compose -f "$COMPOSE_FILE" logs --no-color >&2 || true
+	fi
     docker compose -f "$COMPOSE_FILE" down --volumes --remove-orphans >/dev/null 2>&1 || true
     case "$MATRIX_CERT_DIR" in
         /tmp/redisshake-matrix-certs.*) rm -rf -- "$MATRIX_CERT_DIR" ;;
     esac
+	exit "$status"
 }
 trap cleanup EXIT INT TERM
 
@@ -33,6 +39,7 @@ openssl x509 -req -days 1 \
     -extfile "$MATRIX_CERT_DIR/server.ext" \
     -out "$MATRIX_CERT_DIR/server.crt" >/dev/null 2>&1
 chmod 0600 "$MATRIX_CERT_DIR"/*
+chmod 0755 "$MATRIX_CERT_DIR"
 chmod 0644 "$MATRIX_CERT_DIR/ca.crt" "$MATRIX_CERT_DIR/server.crt" "$MATRIX_CERT_DIR/server.key"
 
 docker compose -f "$COMPOSE_FILE" up -d --wait
