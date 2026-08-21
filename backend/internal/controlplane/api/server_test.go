@@ -50,6 +50,9 @@ func TestHealthReadyAndSystemInfo(t *testing.T) {
 	if payload["data_dir"] != config.DataDir || payload["runtime_dir"] != config.RuntimeDir {
 		t.Fatalf("system info paths = %#v", payload)
 	}
+	if payload["worker_path"] != config.WorkerPath {
+		t.Fatalf("worker_path = %#v", payload["worker_path"])
+	}
 	if payload["secrets_configured"] != true {
 		t.Fatalf("secrets_configured = %#v", payload["secrets_configured"])
 	}
@@ -103,6 +106,7 @@ func newTestServer(t *testing.T, checkers ...connections.Checker) (*store.Store,
 		DatabasePath:  database.Path(),
 		RuntimeDir:    filepath.Join(root, "runtime"),
 		MasterKey:     bytes.Repeat([]byte{0x61}, 32),
+		WorkerPath:    filepath.Join(root, "redis-shake"),
 	}
 	cipher, err := secrets.NewCipher(config.MasterKey)
 	if err != nil {
@@ -114,6 +118,6 @@ func newTestServer(t *testing.T, checkers ...connections.Checker) (*store.Store,
 	}
 	connectionService := connections.NewService(database, cipher, checker)
 	taskService := tasks.NewService(database, connectionService, &taskconfig.Renderer{}, config.RuntimeDir)
-	server := NewServer(database, config, BuildInfo{Version: "test-version", GitCommit: "abc123"}, connectionService, taskService)
+	server := NewServer(database, config, BuildInfo{Version: "test-version", GitCommit: "abc123"}, connectionService, taskService, nil)
 	return database, config, server.Handler()
 }

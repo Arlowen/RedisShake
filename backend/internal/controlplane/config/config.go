@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"RedisShake/internal/controlplane/secrets"
 )
@@ -15,6 +16,9 @@ const (
 	EnvDatabasePath  = "REDISSHAKE_DB_PATH"
 	EnvRuntimeDir    = "REDISSHAKE_RUNTIME_DIR"
 	EnvMasterKey     = "REDISSHAKE_MASTER_KEY"
+	EnvWorkerPath    = "REDISSHAKE_WORKER_PATH"
+	EnvStartTimeout  = "REDISSHAKE_RUN_START_TIMEOUT"
+	EnvStopTimeout   = "REDISSHAKE_RUN_STOP_TIMEOUT"
 )
 
 type Config struct {
@@ -23,6 +27,9 @@ type Config struct {
 	DatabasePath  string
 	RuntimeDir    string
 	MasterKey     []byte
+	WorkerPath    string
+	StartTimeout  time.Duration
+	StopTimeout   time.Duration
 }
 
 func Load() (Config, error) {
@@ -64,6 +71,22 @@ func Load() (Config, error) {
 	if listenAddress == "" {
 		listenAddress = "127.0.0.1:8080"
 	}
+	workerPath := strings.TrimSpace(os.Getenv(EnvWorkerPath))
+	if workerPath == "" {
+		workerPath = filepath.Join("bin", "redis-shake")
+	}
+	workerPath, err = filepath.Abs(workerPath)
+	if err != nil {
+		return Config{}, fmt.Errorf("resolve RedisShake worker path: %w", err)
+	}
+	startTimeout, err := durationFromEnvironment(EnvStartTimeout, 15*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+	stopTimeout, err := durationFromEnvironment(EnvStopTimeout, 30*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
 		ListenAddress: listenAddress,
@@ -71,7 +94,22 @@ func Load() (Config, error) {
 		DatabasePath:  databasePath,
 		RuntimeDir:    runtimeDir,
 		MasterKey:     masterKey,
+		WorkerPath:    workerPath,
+		StartTimeout:  startTimeout,
+		StopTimeout:   stopTimeout,
 	}, nil
+}
+
+func durationFromEnvironment(name string, fallback time.Duration) (time.Duration, error) {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return fallback, nil
+	}
+	parsed, err := time.ParseDuration(value)
+	if err != nil || parsed <= 0 {
+		return 0, fmt.Errorf("%s must be a positive duration", name)
+	}
+	return parsed, nil
 }
 
 func (c Config) SecretsConfigured() bool {

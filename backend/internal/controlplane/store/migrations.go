@@ -112,4 +112,13 @@ var migrations = []migration{
 			`CREATE INDEX idx_tasks_state_updated_at ON tasks(state, updated_at DESC)`,
 		},
 	},
+	{
+		version: 4,
+		statements: []string{
+			`ALTER TABLE runs ADD COLUMN status_json TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE runs ADD COLUMN status_healthy INTEGER NOT NULL DEFAULT 0 CHECK (status_healthy IN (0, 1))`,
+			`ALTER TABLE runs ADD COLUMN worker_path TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE runs ADD COLUMN updated_at TEXT`,
+		},
+	},
 }

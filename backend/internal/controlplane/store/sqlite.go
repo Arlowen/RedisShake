@@ -16,6 +16,8 @@ var (
 	ErrConflict         = errors.New("record conflicts with existing data")
 	ErrInUse            = errors.New("record is still in use")
 	ErrRevisionConflict = errors.New("record revision has changed")
+	ErrTaskNotReady     = errors.New("task is not ready")
+	ErrActiveRun        = errors.New("task already has an active run")
 )
 
 type Store struct {

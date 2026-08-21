@@ -314,11 +314,56 @@ func (s *Store) ArchiveTask(ctx context.Context, id string, updatedAt time.Time)
 }
 
 func (s *Store) CreateRun(ctx context.Context, run domain.Run) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO runs (
+	return insertRun(ctx, s.db, run)
+}
+
+func (s *Store) CreateRunIfNoActive(ctx context.Context, run domain.Run) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin run creation: %w", err)
+	}
+	defer tx.Rollback()
+	var state domain.TaskState
+	var revision int64
+	if err := tx.QueryRowContext(ctx, "SELECT state, config_revision FROM tasks WHERE id = ?", run.TaskID).Scan(&state, &revision); err != nil {
+		return mapNotFound(err)
+	}
+	if state != domain.TaskStateReady || revision != run.ConfigRevision {
+		return ErrTaskNotReady
+	}
+	var active int
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(
+		SELECT 1 FROM runs WHERE task_id = ? AND state IN ('STARTING', 'RUNNING', 'STOPPING', 'UNKNOWN')
+	)`, run.TaskID).Scan(&active); err != nil {
+		return fmt.Errorf("check active task run: %w", err)
+	}
+	if active == 1 {
+		return ErrActiveRun
+	}
+	if err := insertRun(ctx, tx, run); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit run creation: %w", err)
+	}
+	return nil
+}
+
+type sqlExecer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func insertRun(ctx context.Context, executor sqlExecer, run domain.Run) error {
+	updatedAt := run.UpdatedAt
+	if updatedAt.IsZero() {
+		updatedAt = run.StartedAt
+	}
+	_, err := executor.ExecContext(ctx, `INSERT INTO runs (
 		id, task_id, config_revision, config_snapshot_json, state,
 		pid, process_started_at, status_port, runtime_dir, started_at,
-		finished_at, exit_code, exit_reason, last_heartbeat_at, stop_requested_by_user
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		finished_at, exit_code, exit_reason, last_heartbeat_at, stop_requested_by_user,
+		status_json, status_healthy, worker_path, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		run.ID,
 		run.TaskID,
 		run.ConfigRevision,
@@ -334,9 +379,13 @@ func (s *Store) CreateRun(ctx context.Context, run domain.Run) error {
 		run.ExitReason,
 		formatOptionalTime(run.LastHeartbeatAt),
 		boolToInt(run.StopRequestedByUser),
+		run.StatusJSON,
+		boolToInt(run.StatusHealthy),
+		run.WorkerPath,
+		formatTime(updatedAt),
 	)
 	if err != nil {
-		return fmt.Errorf("create run: %w", err)
+		return fmt.Errorf("create run: %w", mapWriteError(err))
 	}
 	return nil
 }
@@ -345,9 +394,138 @@ func (s *Store) GetRun(ctx context.Context, id string) (domain.Run, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT
 		id, task_id, config_revision, config_snapshot_json, state,
 		pid, process_started_at, status_port, runtime_dir, started_at,
-		finished_at, exit_code, exit_reason, last_heartbeat_at, stop_requested_by_user
+		finished_at, exit_code, exit_reason, last_heartbeat_at, stop_requested_by_user,
+		status_json, status_healthy, worker_path, updated_at
 		FROM runs WHERE id = ?`, id)
 	return scanRun(row)
+}
+
+func (s *Store) ListRunsByTask(ctx context.Context, taskID string) ([]domain.Run, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT
+		id, task_id, config_revision, config_snapshot_json, state,
+		pid, process_started_at, status_port, runtime_dir, started_at,
+		finished_at, exit_code, exit_reason, last_heartbeat_at, stop_requested_by_user,
+		status_json, status_healthy, worker_path, updated_at
+		FROM runs WHERE task_id = ? ORDER BY started_at DESC`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("list task runs: %w", err)
+	}
+	defer rows.Close()
+	runs := make([]domain.Run, 0)
+	for rows.Next() {
+		run, err := scanRun(rows)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, run)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate task runs: %w", err)
+	}
+	return runs, nil
+}
+
+func (s *Store) UpdateRunStarted(ctx context.Context, id string, pid int, processStartedAt time.Time, statusPort int, workerPath string) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE runs SET
+		pid = ?, process_started_at = ?, status_port = ?, worker_path = ?, updated_at = ?
+		WHERE id = ? AND state = 'STARTING'`, pid, formatTime(processStartedAt), statusPort, workerPath, formatTime(processStartedAt), id)
+	if err != nil {
+		return fmt.Errorf("update started run: %w", err)
+	}
+	return requireChanged(result, "started run")
+}
+
+func (s *Store) MarkRunRunning(ctx context.Context, id string, statusJSON string, heartbeatAt time.Time) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE runs SET
+		state = 'RUNNING', status_json = ?, status_healthy = 1,
+		last_heartbeat_at = ?, updated_at = ?
+		WHERE id = ? AND state = 'STARTING'`, statusJSON, formatTime(heartbeatAt), formatTime(heartbeatAt), id)
+	if err != nil {
+		return fmt.Errorf("mark run running: %w", err)
+	}
+	return requireChanged(result, "running run")
+}
+
+func (s *Store) UpdateRunStatus(ctx context.Context, id string, statusJSON string, heartbeatAt time.Time) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE runs SET
+		status_json = ?, status_healthy = 1, last_heartbeat_at = ?, updated_at = ?
+		WHERE id = ? AND state IN ('RUNNING', 'STOPPING')`, statusJSON, formatTime(heartbeatAt), formatTime(heartbeatAt), id)
+	if err != nil {
+		return fmt.Errorf("update run status: %w", err)
+	}
+	return requireChanged(result, "run status")
+}
+
+func (s *Store) MarkRunStatusUnhealthy(ctx context.Context, id string, updatedAt time.Time) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE runs SET status_healthy = 0, updated_at = ?
+		WHERE id = ? AND state IN ('STARTING', 'RUNNING', 'STOPPING')`, formatTime(updatedAt), id)
+	if err != nil {
+		return fmt.Errorf("mark run status unhealthy: %w", err)
+	}
+	return requireChanged(result, "unhealthy run status")
+}
+
+func (s *Store) RequestRunStop(ctx context.Context, id string, requestedAt time.Time) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE runs SET
+		state = 'STOPPING', stop_requested_by_user = 1, updated_at = ?
+		WHERE id = ? AND state IN ('STARTING', 'RUNNING')`, formatTime(requestedAt), id)
+	if err != nil {
+		return fmt.Errorf("request run stop: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read stopped run count: %w", err)
+	}
+	if rows > 0 {
+		return nil
+	}
+	var state domain.RunState
+	if err := s.db.QueryRowContext(ctx, "SELECT state FROM runs WHERE id = ?", id).Scan(&state); err != nil {
+		return mapNotFound(err)
+	}
+	if state == domain.RunStateStopping {
+		return nil
+	}
+	return ErrConflict
+}
+
+func (s *Store) FinalizeRun(ctx context.Context, id string, state domain.RunState, exitCode *int, reason string, finishedAt time.Time) error {
+	if state != domain.RunStateStopped && state != domain.RunStateSucceeded && state != domain.RunStateFailed {
+		return fmt.Errorf("invalid final run state %s", state)
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE runs SET
+		state = ?, finished_at = ?, exit_code = ?, exit_reason = ?, status_healthy = 0, updated_at = ?
+		WHERE id = ? AND state IN ('STARTING', 'RUNNING', 'STOPPING', 'UNKNOWN')`,
+		state, formatTime(finishedAt), optionalInt(exitCode), reason, formatTime(finishedAt), id)
+	if err != nil {
+		return fmt.Errorf("finalize run: %w", err)
+	}
+	return requireChanged(result, "finalized run")
+}
+
+func (s *Store) MarkActiveRunsUnknown(ctx context.Context, reason string, updatedAt time.Time) (int64, error) {
+	result, err := s.db.ExecContext(ctx, `UPDATE runs SET
+		state = 'UNKNOWN', status_healthy = 0, exit_reason = ?, updated_at = ?
+		WHERE state IN ('STARTING', 'RUNNING', 'STOPPING')`, reason, formatTime(updatedAt))
+	if err != nil {
+		return 0, fmt.Errorf("mark active runs unknown: %w", err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("read unknown run count: %w", err)
+	}
+	return count, nil
+}
+
+func requireChanged(result sql.Result, operation string) error {
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read %s count: %w", operation, err)
+	}
+	if rows == 0 {
+		return ErrConflict
+	}
+	return nil
 }
 
 type scanner interface {
@@ -449,9 +627,9 @@ func (s *Store) taskWriteMiss(ctx context.Context, id string, expectedRevision i
 func scanRun(row scanner) (domain.Run, error) {
 	var run domain.Run
 	var pid, statusPort, exitCode sql.NullInt64
-	var processStartedAt, finishedAt, heartbeatAt sql.NullString
+	var processStartedAt, finishedAt, heartbeatAt, updatedAt sql.NullString
 	var startedAt string
-	var stopRequested int
+	var stopRequested, statusHealthy int
 	err := row.Scan(
 		&run.ID,
 		&run.TaskID,
@@ -468,6 +646,10 @@ func scanRun(row scanner) (domain.Run, error) {
 		&run.ExitReason,
 		&heartbeatAt,
 		&stopRequested,
+		&run.StatusJSON,
+		&statusHealthy,
+		&run.WorkerPath,
+		&updatedAt,
 	)
 	if err != nil {
 		return domain.Run{}, mapNotFound(err)
@@ -476,6 +658,7 @@ func scanRun(row scanner) (domain.Run, error) {
 	run.StatusPort = nullIntToPointer(statusPort)
 	run.ExitCode = nullIntToPointer(exitCode)
 	run.StopRequestedByUser = stopRequested == 1
+	run.StatusHealthy = statusHealthy == 1
 	if run.StartedAt, err = parseTime(startedAt); err != nil {
 		return domain.Run{}, err
 	}
@@ -487,6 +670,13 @@ func scanRun(row scanner) (domain.Run, error) {
 	}
 	if run.LastHeartbeatAt, err = parseOptionalTime(heartbeatAt); err != nil {
 		return domain.Run{}, err
+	}
+	if updatedAt.Valid {
+		if run.UpdatedAt, err = parseTime(updatedAt.String); err != nil {
+			return domain.Run{}, err
+		}
+	} else {
+		run.UpdatedAt = run.StartedAt
 	}
 	return run, nil
 }

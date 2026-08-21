@@ -36,8 +36,9 @@ type AdvancedOptions struct {
 
 	Ncpu int `mapstructure:"ncpu" default:"0"`
 
-	PprofPort  int `mapstructure:"pprof_port" default:"0"`
-	StatusPort int `mapstructure:"status_port" default:"0"`
+	PprofPort     int    `mapstructure:"pprof_port" default:"0"`
+	StatusPort    int    `mapstructure:"status_port" default:"0"`
+	StatusAddress string `mapstructure:"status_address" default:""`
 
 	// log
 	LogFile       string `mapstructure:"log_file" default:"shake.log"`

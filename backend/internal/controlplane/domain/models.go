@@ -103,6 +103,10 @@ type Run struct {
 	ExitReason          string     `json:"exit_reason,omitempty"`
 	LastHeartbeatAt     *time.Time `json:"last_heartbeat_at,omitempty"`
 	StopRequestedByUser bool       `json:"stop_requested_by_user"`
+	StatusJSON          string     `json:"-"`
+	StatusHealthy       bool       `json:"status_healthy"`
+	WorkerPath          string     `json:"worker_path,omitempty"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 func ValidateTaskTransition(from, to TaskState) error {
@@ -131,9 +135,10 @@ func ValidateRunTransition(from, to RunState) error {
 	}
 	allowed := map[RunState]map[RunState]bool{
 		RunStateStarting: {
-			RunStateRunning: true,
-			RunStateFailed:  true,
-			RunStateUnknown: true,
+			RunStateRunning:  true,
+			RunStateStopping: true,
+			RunStateFailed:   true,
+			RunStateUnknown:  true,
 		},
 		RunStateRunning: {
 			RunStateStopping:  true,

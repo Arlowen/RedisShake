@@ -8,6 +8,7 @@ import (
 
 	cpconfig "RedisShake/internal/controlplane/config"
 	"RedisShake/internal/controlplane/connections"
+	"RedisShake/internal/controlplane/engine"
 	"RedisShake/internal/controlplane/store"
 	"RedisShake/internal/controlplane/tasks"
 )
@@ -23,17 +24,19 @@ type Server struct {
 	buildInfo   BuildInfo
 	connections *connections.Service
 	tasks       *tasks.Service
+	engine      *engine.Manager
 	startedAt   time.Time
 	handler     http.Handler
 }
 
-func NewServer(database *store.Store, config cpconfig.Config, buildInfo BuildInfo, connectionService *connections.Service, taskService *tasks.Service) *Server {
+func NewServer(database *store.Store, config cpconfig.Config, buildInfo BuildInfo, connectionService *connections.Service, taskService *tasks.Service, engineManager *engine.Manager) *Server {
 	server := &Server{
 		store:       database,
 		config:      config,
 		buildInfo:   buildInfo,
 		connections: connectionService,
 		tasks:       taskService,
+		engine:      engineManager,
 		startedAt:   time.Now().UTC(),
 	}
 	server.handler = server.routes()
@@ -62,6 +65,13 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("PATCH /api/v1/tasks/{id}", s.handleUpdateTask)
 	mux.HandleFunc("DELETE /api/v1/tasks/{id}", s.handleArchiveTask)
 	mux.HandleFunc("POST /api/v1/tasks/{id}/precheck", s.handlePrecheckTask)
+	mux.HandleFunc("POST /api/v1/tasks/{id}/runs", s.handleStartRun)
+	mux.HandleFunc("GET /api/v1/tasks/{id}/runs", s.handleListRuns)
+	mux.HandleFunc("GET /api/v1/runs/{id}", s.handleGetRun)
+	mux.HandleFunc("POST /api/v1/runs/{id}/stop", s.handleStopRun)
+	mux.HandleFunc("POST /api/v1/runs/{id}/force-stop", s.handleForceStopRun)
+	mux.HandleFunc("GET /api/v1/runs/{id}/logs", s.handleRunLogs)
+	mux.HandleFunc("GET /api/v1/runs/{id}/events", s.handleRunEvents)
 	mux.HandleFunc("/", s.handleNotFound)
 	return securityHeaders(mux)
 }
@@ -94,6 +104,7 @@ func (s *Server) handleSystemInfo(w http.ResponseWriter, _ *http.Request) {
 		"data_dir":           s.config.DataDir,
 		"runtime_dir":        s.config.RuntimeDir,
 		"secrets_configured": s.config.SecretsConfigured(),
+		"worker_path":        s.config.WorkerPath,
 	})
 }
 

@@ -14,6 +14,7 @@ import (
 	"RedisShake/internal/controlplane/api"
 	cpconfig "RedisShake/internal/controlplane/config"
 	"RedisShake/internal/controlplane/connections"
+	"RedisShake/internal/controlplane/engine"
 	"RedisShake/internal/controlplane/redischeck"
 	"RedisShake/internal/controlplane/secrets"
 	"RedisShake/internal/controlplane/store"
@@ -55,11 +56,22 @@ func run() error {
 		return err
 	}
 	taskService := tasks.NewService(database, connectionService, &taskconfig.Renderer{}, config.RuntimeDir)
+	engineManager := engine.NewManager(database, taskService, connectionService, &taskconfig.Renderer{}, engine.ManagerConfig{
+		WorkerPath:   config.WorkerPath,
+		RuntimeDir:   config.RuntimeDir,
+		StartTimeout: config.StartTimeout,
+		StopTimeout:  config.StopTimeout,
+	})
+	if recovered, err := engineManager.Initialize(ctx); err != nil {
+		return err
+	} else if recovered > 0 {
+		log.Printf("marked %d unowned RedisShake runs as UNKNOWN", recovered)
+	}
 
 	apiServer := api.NewServer(database, config, api.BuildInfo{
 		Version:   Version,
 		GitCommit: GitCommit,
-	}, connectionService, taskService)
+	}, connectionService, taskService, engineManager)
 	httpServer := &http.Server{
 		Addr:              config.ListenAddress,
 		Handler:           apiServer.Handler(),
@@ -79,10 +91,16 @@ func run() error {
 
 	select {
 	case <-shutdownContext.Done():
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := httpServer.Shutdown(ctx); err != nil {
+		httpShutdownContext, cancelHTTPShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := httpServer.Shutdown(httpShutdownContext); err != nil {
+			cancelHTTPShutdown()
 			return fmt.Errorf("shutdown HTTP server: %w", err)
+		}
+		cancelHTTPShutdown()
+		workerShutdownContext, cancelWorkerShutdown := context.WithTimeout(context.Background(), config.StopTimeout+5*time.Second)
+		defer cancelWorkerShutdown()
+		if err := engineManager.Shutdown(workerShutdownContext); err != nil {
+			return fmt.Errorf("shutdown RedisShake workers: %w", err)
 		}
 		return nil
 	case err := <-errChannel:

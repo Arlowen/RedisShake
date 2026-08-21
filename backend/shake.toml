@@ -104,6 +104,7 @@ dir = "data"
 ncpu = 0        # runtime.GOMAXPROCS, 0 means use runtime.NumCPU() cpu cores
 pprof_port = 0  # pprof port, 0 means disable
 status_port = 0 # status port, 0 means disable
+status_address = "" # empty preserves legacy all-interface binding; use "127.0.0.1" for loopback-only status
 
 # log
 log_file = "shake.log"

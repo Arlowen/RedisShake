@@ -104,6 +104,7 @@ type advancedDocument struct {
 	NCPU                            int    `toml:"ncpu"`
 	PProfPort                       int    `toml:"pprof_port"`
 	StatusPort                      int    `toml:"status_port"`
+	StatusAddress                   string `toml:"status_address"`
 	LogFile                         string `toml:"log_file"`
 	LogLevel                        string `toml:"log_level"`
 	LogInterval                     int    `toml:"log_interval"`
@@ -139,6 +140,7 @@ func (r *Renderer) Render(spec tasks.Spec, source, target connections.Resolved, 
 			NCPU:                            0,
 			PProfPort:                       0,
 			StatusPort:                      runtime.StatusPort,
+			StatusAddress:                   "127.0.0.1",
 			LogFile:                         "shake.log",
 			LogLevel:                        "info",
 			LogInterval:                     5,

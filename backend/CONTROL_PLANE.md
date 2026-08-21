@@ -18,9 +18,12 @@ The current implementation provides:
 - synchronization task drafts with optimistic config revisions and archive semantics;
 - task-level source/target checks, filter validation, danger warnings, and READY transitions;
 - RedisShake TOML generation that is parsed by the same backend configuration package before a task can become READY;
+- one isolated RedisShake process group per Run, with worker version probing and duplicate-run protection;
+- loopback-only RedisShake status endpoints, persisted status snapshots, heartbeats, logs, and SSE status events;
+- scan completion, unexpected-exit, graceful-stop, force-stop, and restart-UNKNOWN state handling;
 - startup validation that prevents opening an existing credential store with a missing or incorrect master key.
 
-Worker process management and the Web UI are the next implementation phases.
+The Web UI and release packaging are the next implementation phases.
 
 ## Data layout
 
@@ -29,7 +32,12 @@ By default, running from `backend/` creates:
 ```text
 backend/data/
 ├── control-plane.db
-└── runtime/
+└── runtime/tasks/<task-id>/runs/<run-id>/
+    ├── shake.toml
+    ├── process.json
+    ├── stdout.log
+    ├── certs/
+    └── data/
 ```
 
 Production containers should set `REDISSHAKE_DATA_DIR=/var/lib/redis-shake-ui` and mount that directory as a persistent volume. Runtime files will be placed below `runtime/tasks/<task-id>/runs/<run-id>/`.
@@ -43,6 +51,9 @@ Production containers should set `REDISSHAKE_DATA_DIR=/var/lib/redis-shake-ui` a
 | `REDISSHAKE_DB_PATH` | `<data-dir>/control-plane.db` | Optional SQLite path override |
 | `REDISSHAKE_RUNTIME_DIR` | `<data-dir>/runtime` | Optional worker runtime path override |
 | `REDISSHAKE_MASTER_KEY` | empty | Base64-encoded 32-byte credential-encryption key |
+| `REDISSHAKE_WORKER_PATH` | `./bin/redis-shake` | RedisShake worker binary; `--version` must return the RedisShake version banner |
+| `REDISSHAKE_RUN_START_TIMEOUT` | `15s` | Maximum wait for the worker status endpoint to become readable |
+| `REDISSHAKE_RUN_STOP_TIMEOUT` | `30s` | Graceful shutdown wait before the control plane force-terminates workers during its own shutdown |
 
 Generate the master key with a cryptographically secure tool and keep it outside the repository. For example, `openssl rand -base64 32` prints a suitable value. Back up the key separately from the SQLite database; encrypted connection passwords cannot be recovered without it.
 
@@ -50,6 +61,7 @@ Generate the master key with a cryptographically secure tool and keep it outside
 
 ```shell
 cd backend
+sh build.sh
 go run ./cmd/redis-shake-server
 ```
 
@@ -97,3 +109,21 @@ POST   /api/v1/tasks/{id}/precheck
 Tasks begin in `DRAFT`. The creation wizard can persist the name and mode before source and target connections are selected. Every update requires `expected_revision`, increments `config_revision`, returns the task to `DRAFT`, and invalidates its previous precheck.
 
 Precheck performs source and target connection tests, topology and filter checks, target write verification, and RedisShake TOML generation. It stores only a SHA-256 digest computed from credential-redacted configuration plus structured check results; generated runtime TOML may contain credentials and is never persisted as a precheck result. A task enters `READY` only when there are no failures and all danger warnings, such as `empty_db_before_sync`, are explicitly acknowledged.
+
+## Run API
+
+```text
+POST /api/v1/tasks/{id}/runs
+GET  /api/v1/tasks/{id}/runs
+GET  /api/v1/runs/{id}
+POST /api/v1/runs/{id}/stop
+POST /api/v1/runs/{id}/force-stop
+GET  /api/v1/runs/{id}/logs
+GET  /api/v1/runs/{id}/events
+```
+
+Starting a READY task freezes a credential-free Task snapshot, allocates a loopback status port, writes the generated runtime files with `0600` permissions inside a `0700` Run directory, and starts one RedisShake process group. `RUNNING` is returned only after the status endpoint is readable; a short scan may finish as `SUCCEEDED` before that handshake completes.
+
+The status poller persists the last valid RedisShake JSON separately from process state. Three consecutive status failures mark status unhealthy without claiming that the process exited. Graceful stop sends `SIGTERM` to the process group; force stop is a separate endpoint. Logs are redacted before disk writes and again before API responses.
+
+At control-plane startup, persisted `STARTING`, `RUNNING`, or `STOPPING` rows for which in-memory ownership cannot be proven become `UNKNOWN`. Such a Run blocks duplicate task startup but cannot be signaled through the API, preventing PID reuse from killing an unrelated process.

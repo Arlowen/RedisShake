@@ -69,7 +69,7 @@ func TestRenderSyncConfigIsAcceptedByRedisShake(t *testing.T) {
 	if v.GetString("sync_reader.password") != `source-"password` {
 		t.Fatalf("rendered password was not TOML escaped correctly")
 	}
-	if options.Advanced.StatusPort != 19001 || options.Advanced.Dir != filepath.Join(runDir, "data") {
+	if options.Advanced.StatusPort != 19001 || options.Advanced.StatusAddress != "127.0.0.1" || options.Advanced.Dir != filepath.Join(runDir, "data") {
 		t.Fatalf("advanced options = %+v", options.Advanced)
 	}
 	if options.Advanced.TargetRedisMaxQPS != 1000 {

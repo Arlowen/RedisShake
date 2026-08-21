@@ -3,6 +3,7 @@ package status
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -42,11 +43,18 @@ func setStatusPort() {
 	if config.Opt.Advanced.StatusPort != 0 {
 		go func() {
 			addr := fmt.Sprintf(":%d", config.Opt.Advanced.StatusPort)
+			if config.Opt.Advanced.StatusAddress != "" {
+				addr = net.JoinHostPort(config.Opt.Advanced.StatusAddress, fmt.Sprintf("%d", config.Opt.Advanced.StatusPort))
+			}
 			if err := http.ListenAndServe(addr, http.HandlerFunc(Handler)); err != nil {
 				log.Panicf("%v", err)
 			}
 		}()
-		log.Infof("status information: http://localhost:%v", config.Opt.Advanced.StatusPort)
+		displayAddress := config.Opt.Advanced.StatusAddress
+		if displayAddress == "" {
+			displayAddress = "localhost"
+		}
+		log.Infof("status information: http://%s:%v", displayAddress, config.Opt.Advanced.StatusPort)
 		log.Infof("status information: watch -n 0.3 'curl -s http://localhost:%v | python -m json.tool'", config.Opt.Advanced.StatusPort)
 	} else {
 		log.Infof("not set status port")

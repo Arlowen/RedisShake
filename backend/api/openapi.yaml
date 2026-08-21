@@ -322,6 +322,157 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/tasks/{id}/runs:
+    parameters:
+      - $ref: "#/components/parameters/TaskID"
+    get:
+      operationId: listTaskRuns
+      summary: List task run history
+      responses:
+        "200":
+          description: Runs ordered by newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Run"
+    post:
+      operationId: startTaskRun
+      summary: Start one RedisShake worker for a READY task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartRunRequest"
+      responses:
+        "201":
+          description: Worker started and its loopback status endpoint became readable, or a scan completed before the handshake finished.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "409":
+          description: Task is not READY, revision changed, or an active/unknown run already exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: A Run record was created but the worker failed during startup.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, run]
+                properties:
+                  error:
+                    $ref: "#/components/schemas/Error"
+                  run:
+                    $ref: "#/components/schemas/Run"
+        "503":
+          description: RedisShake worker binary or version probe is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/runs/{id}:
+    parameters:
+      - $ref: "#/components/parameters/RunID"
+    get:
+      operationId: getRun
+      summary: Get persisted process and RedisShake status
+      responses:
+        "200":
+          description: Run state and latest status payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/runs/{id}/stop:
+    parameters:
+      - $ref: "#/components/parameters/RunID"
+    post:
+      operationId: stopRun
+      summary: Request graceful process-group termination
+      responses:
+        "202":
+          description: Run entered STOPPING.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "409":
+          description: Run is terminal or ownership cannot be proven after restart.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/runs/{id}/force-stop:
+    parameters:
+      - $ref: "#/components/parameters/RunID"
+    post:
+      operationId: forceStopRun
+      summary: Force process-group termination after user confirmation
+      responses:
+        "202":
+          description: Force termination was sent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "409":
+          description: Run is terminal or ownership cannot be proven after restart.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/runs/{id}/logs:
+    parameters:
+      - $ref: "#/components/parameters/RunID"
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1048576
+          default: 65536
+    get:
+      operationId: getRunLogs
+      summary: Read a redacted page of worker stdout/stderr
+      responses:
+        "200":
+          description: Log content and next byte offset.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogResult"
+  /api/v1/runs/{id}/events:
+    parameters:
+      - $ref: "#/components/parameters/RunID"
+    get:
+      operationId: streamRunEvents
+      summary: Stream persisted run status updates
+      responses:
+        "200":
+          description: Server-sent status events until the run reaches a terminal state.
+          content:
+            text/event-stream:
+              schema:
+                type: string
 components:
   parameters:
     ConnectionID:
@@ -331,6 +482,12 @@ components:
       schema:
         type: string
     TaskID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    RunID:
       name: id
       in: path
       required: true
@@ -375,7 +532,7 @@ components:
           const: ok
     SystemInfo:
       type: object
-      required: [version, git_commit, storage, data_dir, runtime_dir, secrets_configured]
+      required: [version, git_commit, storage, data_dir, runtime_dir, secrets_configured, worker_path]
       properties:
         version:
           type: string
@@ -389,20 +546,24 @@ components:
           type: string
         secrets_configured:
           type: boolean
+        worker_path:
+          type: string
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        field:
+          type: string
     ErrorResponse:
       type: object
       required: [error]
       properties:
         error:
-          type: object
-          required: [code, message]
-          properties:
-            code:
-              type: string
-            message:
-              type: string
-            field:
-              type: string
+          $ref: "#/components/schemas/Error"
     TLSInput:
       type: object
       properties:
@@ -763,3 +924,63 @@ components:
         checked_at:
           type: string
           format: date-time
+    StartRunRequest:
+      type: object
+      required: [expected_revision]
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 1
+    Run:
+      type: object
+      required: [id, task_id, config_revision, config_snapshot, state, started_at, stop_requested_by_user, status_healthy, updated_at]
+      properties:
+        id:
+          type: string
+        task_id:
+          type: string
+        config_revision:
+          type: integer
+        config_snapshot:
+          $ref: "#/components/schemas/TaskSpec"
+        state:
+          type: string
+          enum: [STARTING, RUNNING, STOPPING, STOPPED, SUCCEEDED, FAILED, UNKNOWN]
+        pid:
+          type: integer
+        status_port:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: [string, "null"]
+          format: date-time
+        exit_code:
+          type: [integer, "null"]
+        exit_reason:
+          type: string
+        last_heartbeat_at:
+          type: [string, "null"]
+          format: date-time
+        stop_requested_by_user:
+          type: boolean
+        status_healthy:
+          type: boolean
+        status:
+          type: object
+          additionalProperties: true
+        updated_at:
+          type: string
+          format: date-time
+    LogResult:
+      type: object
+      required: [content, next_offset, eof]
+      properties:
+        content:
+          type: string
+        next_offset:
+          type: integer
+          format: int64
+        eof:
+          type: boolean

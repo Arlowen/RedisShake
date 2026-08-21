@@ -151,6 +151,7 @@ dir = "data"
 ncpu = 0                   # 0 = use all CPU cores
 pprof_port = 0             # 0 = disable
 status_port = 0            # set a port to enable HTTP status monitoring
+status_address = ""       # empty listens on all interfaces; set 127.0.0.1 for loopback only
 
 log_file = "shake.log"
 log_level = "info"         # debug, info, warn
