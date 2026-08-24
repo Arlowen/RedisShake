@@ -4,6 +4,7 @@ __pycache__/
 .DS_Store
 node_modules/
 .env
+.design_docs/
 
 # compiled output or test output
 bin/
