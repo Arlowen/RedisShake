@@ -10,6 +10,7 @@ import type { ThemeMode } from '@/utils/theme'
 import ConnectionsView from '@/views/ConnectionsView'
 import SystemView from '@/views/SystemView'
 import TaskDetailView from '@/views/TaskDetailView'
+import TaskEditorPage from '@/views/TaskEditorPage'
 import TasksView from '@/views/TasksView'
 
 const navigation = [
@@ -42,11 +43,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [menuOpen])
 
-  const navigationLinks = navigation.map((item) => {
-    const active = activeName === item.name
-    return <NavLink key={item.name} to={item.to} aria-label={item.label} className={`nav-item${active ? ' active' : ''}`}>{item.label}</NavLink>
-  })
-
   return (
     <ConfigProvider theme={{
       algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
@@ -72,24 +68,41 @@ export default function App() {
                   <NavLink className="brand" to="/tasks" aria-label="RedisShake Console">
                     <strong>RedisShake</strong>
                   </NavLink>
-                  <nav className="primary-nav" aria-label="主导航">{navigationLinks}</nav>
+                  <span />
                   <div className="topbar-actions">
                     <button type="button" className="appearance-toggle" aria-label={dark ? '切换到浅色模式' : '切换到深色模式'} onClick={() => setThemeMode(dark ? 'light' : 'dark')}>{dark ? <Sun size={16} /> : <Moon size={16} />}</button>
                     <div className="service-state" title="控制面运行正常"><span className="status-beacon" /><span>Ready</span></div>
-                    <button type="button" className="mobile-menu-button" aria-label={menuOpen ? '关闭导航菜单' : '打开导航菜单'} aria-controls="mobile-navigation" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={21} /> : <List size={21} />}</button>
+                    <button type="button" className="mobile-menu-button" aria-label={menuOpen ? '关闭侧边栏' : '打开侧边栏'} aria-controls="app-sidebar" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={21} /> : <List size={21} />}</button>
                   </div>
-                  {menuOpen ? <div id="mobile-navigation" className="mobile-nav-panel"><nav aria-label="移动导航">{navigationLinks}</nav><button type="button" className="mobile-theme-action" onClick={() => setThemeMode(dark ? 'light' : 'dark')}><span>外观</span><span>{dark ? '浅色模式' : '深色模式'}</span></button><div className="mobile-ready"><span className="status-beacon" />Ready</div></div> : null}
                 </div>
               </header>
-              <main className="app-main">
-                <Routes>
-                  <Route path="/tasks" element={<TasksView />} />
-                  <Route path="/tasks/:id" element={<TaskDetailView />} />
-                  <Route path="/connections" element={<ConnectionsView />} />
-                  <Route path="/system" element={<SystemView />} />
-                  <Route path="*" element={<Navigate to="/tasks" replace />} />
-                </Routes>
-              </main>
+              <div className="app-body">
+                {menuOpen ? <button type="button" className="sidebar-backdrop" aria-label="关闭侧边栏" onClick={() => setMenuOpen(false)} /> : null}
+                <aside id="app-sidebar" className={`app-sidebar${menuOpen ? ' open' : ''}`}>
+                  <div className="sidebar-scroll">
+                    <span className="sidebar-label">数据同步</span>
+                    <nav className="sidebar-nav" aria-label="主导航">
+                      {navigation.slice(0, 2).map((item) => <NavLink key={item.name} to={item.to} aria-label={item.label} className={`sidebar-item${activeName === item.name ? ' active' : ''}`}>{item.label}</NavLink>)}
+                    </nav>
+                    <span className="sidebar-label">系统</span>
+                    <nav className="sidebar-nav" aria-label="系统导航">
+                      {navigation.slice(2).map((item) => <NavLink key={item.name} to={item.to} aria-label={item.label} className={`sidebar-item${activeName === item.name ? ' active' : ''}`}>{item.label}</NavLink>)}
+                    </nav>
+                  </div>
+                  <div className="sidebar-footer"><span className="status-beacon" /><span>Control plane ready</span></div>
+                </aside>
+                <main className="app-main">
+                  <Routes>
+                    <Route path="/tasks" element={<TasksView />} />
+                    <Route path="/tasks/new" element={<TaskEditorPage />} />
+                    <Route path="/tasks/:id/edit" element={<TaskEditorPage />} />
+                    <Route path="/tasks/:id" element={<TaskDetailView />} />
+                    <Route path="/connections" element={<ConnectionsView />} />
+                    <Route path="/system" element={<SystemView />} />
+                    <Route path="*" element={<Navigate to="/tasks" replace />} />
+                  </Routes>
+                </main>
+              </div>
             </div>
           </TasksProvider>
         </ConnectionsProvider>

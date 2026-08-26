@@ -10,7 +10,6 @@ import EmptyState from '@/components/EmptyState'
 import InlineError from '@/components/InlineError'
 import PageHeader from '@/components/PageHeader'
 import StatusPill from '@/components/StatusPill'
-import TaskWizard from '@/components/TaskWizard'
 import { useConnections } from '@/state/ConnectionsContext'
 import { useTasks } from '@/state/TasksContext'
 import { formatDate, formatNumber, modeLabel, runStateMeta, taskStateMeta } from '@/utils/presentation'
@@ -23,8 +22,6 @@ export default function TasksView() {
   const { message } = App.useApp()
   const tasks = useTasks()
   const connections = useConnections()
-  const [wizardOpen, setWizardOpen] = useState(false)
-  const [editingTask, setEditingTask] = useState<Task>()
   const [query, setQuery] = useState('')
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
   const [sortOrder, setSortOrder] = useState<SortOrder>('updated')
@@ -51,9 +48,8 @@ export default function TasksView() {
   const totalWritten = Object.values(latestRuns).reduce((total, run) => total + (run?.status?.total_entries_count?.write_count ?? 0), 0)
 
   function connectionName(id?: string) { return id ? connections.items.find((item) => item.id === id)?.name ?? '连接已删除' : '未选择' }
-  function create() { setEditingTask(undefined); setWizardOpen(true) }
-  function edit(task: Task) { setEditingTask(task); setWizardOpen(true) }
-  function completed(task: Task, run?: Run) { setWizardOpen(false); tasks.replace(task); if (run) setLatestRuns((current) => ({ ...current, [task.id]: run })); navigate(`/tasks/${task.id}`) }
+  function create() { navigate('/tasks/new') }
+  function edit(task: Task) { navigate(`/tasks/${task.id}/edit`) }
 
   async function start(task: Task) {
     setStartingId(task.id)
@@ -103,6 +99,5 @@ export default function TasksView() {
           </div>
         })}</div> : <EmptyState title="没有匹配的任务" description="调整搜索或状态筛选。" />}
         </>}
-    <TaskWizard open={wizardOpen} initialTask={editingTask} onClose={() => setWizardOpen(false)} onCompleted={completed} />
   </div>
 }

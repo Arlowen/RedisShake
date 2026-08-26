@@ -31,21 +31,17 @@ test('creates connections and runs a real RedisShake scan from the UI', async ({
 
   await page.getByRole('link', { name: '同步任务' }).click()
   await page.getByRole('button', { name: '创建任务' }).first().click()
+  await expect(page).toHaveURL(/\/tasks\/new$/)
+  await expect(page.getByRole('heading', { name: '创建同步任务' })).toBeVisible()
   await page.getByLabel('任务名称', { exact: true }).fill(taskName)
   await page.getByText('扫描迁移', { exact: true }).click()
-  await page.getByRole('button', { name: '下一步' }).click()
-
   await page.getByRole('combobox', { name: /源端连接/ }).click()
   await page.getByText(sourceName, { exact: true }).last().click()
-  await page.getByRole('button', { name: '下一步' }).click()
   await page.getByRole('combobox', { name: /目标连接/ }).click()
   await page.getByText(targetName, { exact: true }).last().click()
-  await page.getByRole('button', { name: '下一步' }).click()
-
   await page.getByText('排除', { exact: true }).click()
   await page.getByLabel('Key 前缀', { exact: true }).fill('e2e:skip:')
-  await page.getByRole('button', { name: '下一步' }).click()
-  await page.getByRole('button', { name: '下一步' }).click()
+  await page.getByRole('button', { name: '执行预检查' }).click()
   await expect(page.getByText('RedisShake 配置生成并通过内核解析', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '启动任务' }).click()
 
