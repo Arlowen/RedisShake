@@ -30,7 +30,7 @@ test('creates connections and runs a real RedisShake scan from the UI', async ({
   await createConnection(page, targetName, 'target-redis:6379', true)
 
   await page.getByRole('link', { name: '同步任务' }).click()
-  await page.getByRole('button', { name: '创建同步任务' }).first().click()
+  await page.getByRole('button', { name: '创建任务' }).first().click()
   await page.getByLabel('任务名称', { exact: true }).fill(taskName)
   await page.getByText('扫描迁移', { exact: true }).click()
   await page.getByRole('button', { name: '下一步' }).click()
