@@ -1,5 +1,5 @@
 import { App, Button, Dropdown, Input, Modal, Segmented, Select } from 'antd'
-import { Archive, ArrowRight, ArrowsClockwise, Copy, DotsThree, MagnifyingGlass, Play, Plus } from '@phosphor-icons/react'
+import { Archive, ArrowRight, ArrowsClockwise, Copy, DotsThree, MagnifyingGlass, Play } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -73,7 +73,7 @@ export default function TasksView() {
 
   return <div className="page-wrap">
     <PageHeader title="同步任务" description="创建、预检并运行 Redis 数据同步任务。">
-      {tasks.items.length ? <Button type="primary" icon={<Plus size={16} />} onClick={create}>创建任务</Button> : null}
+      {tasks.items.length ? <Button type="primary" onClick={create}>创建任务</Button> : null}
     </PageHeader>
     {tasks.error ? <InlineError className="task-error" message={tasks.error} onRetry={() => void load()} /> : null}
     {tasks.loading && !tasks.items.length ? <div className="skeleton-list">{[0, 1, 2, 3, 4].map((item) => <div key={item} className="skeleton-row" />)}</div>

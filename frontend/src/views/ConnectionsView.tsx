@@ -1,5 +1,5 @@
 import { App, Button, Dropdown, Modal } from 'antd'
-import { ArrowsClockwise, Copy, DotsThree, Plus, Trash } from '@phosphor-icons/react'
+import { ArrowsClockwise, Copy, DotsThree, Trash } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 
 import type { Connection } from '@/api/types'
@@ -38,7 +38,7 @@ export default function ConnectionsView() {
 
   return <div className="page-wrap">
     <PageHeader title="连接管理" description="保存并测试 Redis 连接，凭据由控制面加密。">
-      {store.items.length ? <Button type="primary" icon={<Plus size={16} />} onClick={() => { setEditing(undefined); setDrawerOpen(true) }}>新建连接</Button> : null}
+      {store.items.length ? <Button type="primary" onClick={() => { setEditing(undefined); setDrawerOpen(true) }}>新建连接</Button> : null}
     </PageHeader>
     {store.error ? <InlineError message={store.error} onRetry={() => void store.load(true)} /> : null}
     {store.loading && !store.loaded ? <div className="skeleton-list">{[0, 1, 2, 3].map((item) => <div key={item} className="skeleton-row" />)}</div>
