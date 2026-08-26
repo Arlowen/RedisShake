@@ -9,6 +9,9 @@ node_modules/
 # compiled output or test output
 bin/
 dist/
+!backend/internal/controlplane/webassets/dist/
+backend/internal/controlplane/webassets/dist/*
+!backend/internal/controlplane/webassets/dist/.placeholder
 tmp/
 data/
 *.log

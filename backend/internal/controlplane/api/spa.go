@@ -1,14 +1,15 @@
 package api
 
 import (
+	"bytes"
+	"io/fs"
 	"net/http"
-	"os"
-	"path/filepath"
+	pathpkg "path"
 	"strings"
 )
 
 func (s *Server) fallbackHandler() http.Handler {
-	if s.config.WebDir == "" {
+	if s.webFS == nil {
 		return http.HandlerFunc(s.handleNotFound)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
@@ -20,31 +21,40 @@ func (s *Server) fallbackHandler() http.Handler {
 			writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
 			return
 		}
-		requestedPath := filepath.Join(s.config.WebDir, filepath.Clean(filepath.FromSlash(strings.TrimPrefix(request.URL.Path, "/"))))
-		if !insideDirectory(s.config.WebDir, requestedPath) {
+		requestedPath := strings.TrimPrefix(pathpkg.Clean("/"+strings.TrimPrefix(request.URL.Path, "/")), "/")
+		if requestedPath == "." || requestedPath == "" {
+			requestedPath = "index.html"
+		}
+		if !fs.ValidPath(requestedPath) {
 			s.handleNotFound(w, request)
 			return
 		}
-		if info, err := os.Stat(requestedPath); err == nil && !info.IsDir() {
+		if info, err := fs.Stat(s.webFS, requestedPath); err == nil && !info.IsDir() {
 			if strings.HasPrefix(request.URL.Path, "/assets/") {
 				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 			}
-			http.ServeFile(w, request, requestedPath)
+			s.serveWebFile(w, request, requestedPath, info)
 			return
 		}
-		if strings.HasPrefix(request.URL.Path, "/assets/") || filepath.Ext(request.URL.Path) != "" {
+		if strings.HasPrefix(request.URL.Path, "/assets/") || pathpkg.Ext(request.URL.Path) != "" {
 			s.handleNotFound(w, request)
 			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
-		http.ServeFile(w, request, filepath.Join(s.config.WebDir, "index.html"))
+		indexInfo, err := fs.Stat(s.webFS, "index.html")
+		if err != nil {
+			s.handleNotFound(w, request)
+			return
+		}
+		s.serveWebFile(w, request, "index.html", indexInfo)
 	})
 }
 
-func insideDirectory(root, path string) bool {
-	relative, err := filepath.Rel(root, path)
+func (s *Server) serveWebFile(w http.ResponseWriter, request *http.Request, name string, info fs.FileInfo) {
+	content, err := fs.ReadFile(s.webFS, name)
 	if err != nil {
-		return false
+		s.handleNotFound(w, request)
+		return
 	}
-	return relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative)
+	http.ServeContent(w, request, name, info.ModTime(), bytes.NewReader(content))
 }

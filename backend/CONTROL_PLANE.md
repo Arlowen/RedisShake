@@ -1,6 +1,6 @@
 # RedisShake Control Plane
 
-The control plane is the backend for the RedisShake Web console. It stores metadata in SQLite and will manage one RedisShake worker process per task. The worker data path and API are being implemented incrementally according to the project design document.
+The control plane stores metadata in SQLite, manages one RedisShake worker process per Run, and serves the embedded React Web console and API from the same HTTP port.
 
 ## Current foundation
 
@@ -22,8 +22,7 @@ The current implementation provides:
 - loopback-only RedisShake status endpoints, persisted status snapshots, heartbeats, logs, and SSE status events;
 - scan completion, unexpected-exit, graceful-stop, force-stop, and restart-UNKNOWN state handling;
 - startup validation that prevents opening an existing credential store with a missing or incorrect master key.
-
-The Web UI and release packaging are the next implementation phases.
+- React + TypeScript Web console assets embedded in `redis-shake-server` through Go `embed.FS`.
 
 ## Data layout
 
@@ -54,7 +53,7 @@ Production containers should set `REDISSHAKE_DATA_DIR=/var/lib/redis-shake-ui` a
 | `REDISSHAKE_WORKER_PATH` | `./bin/redis-shake` | RedisShake worker binary; `--version` must return the RedisShake version banner |
 | `REDISSHAKE_RUN_START_TIMEOUT` | `15s` | Maximum wait for the worker status endpoint to become readable |
 | `REDISSHAKE_RUN_STOP_TIMEOUT` | `30s` | Graceful shutdown wait before the control plane force-terminates workers during its own shutdown |
-| `REDISSHAKE_WEB_DIR` | empty | Optional built SPA directory; when set, the control plane serves the Web console and client-side routes |
+| `REDISSHAKE_WEB_DIR` | empty | Optional filesystem SPA override; the compiled binary uses embedded React assets by default |
 | `REDISSHAKE_MAX_CONCURRENT_RUNS` | `4` | Global cap for STARTING, RUNNING, STOPPING, and UNKNOWN Runs |
 | `REDISSHAKE_LOG_RETENTION_DAYS` | `7` | Delete terminal Run artifact directories after this many days; `0` disables artifact cleanup |
 
@@ -64,9 +63,11 @@ Generate the master key with a cryptographically secure tool and keep it outside
 
 ```shell
 cd backend
-sh build.sh
-go run ./cmd/redis-shake-server
+sh build_web.sh
+REDISSHAKE_MASTER_KEY="$(openssl rand -base64 32)" ./bin/redis-shake-server
 ```
+
+`build_web.sh` runs the Webpack production build, stages the ignored frontend output in the Go resource package, and compiles both RedisShake and the control-plane server. The resulting server binary is self-contained and serves the UI and API from port `8080`.
 
 Then query:
 
@@ -133,6 +134,6 @@ At control-plane startup, persisted `STARTING`, `RUNNING`, or `STOPPING` rows fo
 
 ## Single-image deployment
 
-`backend/Dockerfile.web` builds the Vue application, RedisShake worker, and control-plane server, then copies only the compiled artifacts into a non-root Alpine runtime. The runtime serves `/app/web`, stores state under `/var/lib/redis-shake-ui`, and health-checks `/readyz`.
+`backend/Dockerfile.web` builds the React application, copies it into the Go `embed.FS` resource package before compiling, and places only the RedisShake worker and self-contained control-plane binary in the non-root Alpine runtime. No `/app/web` directory or frontend runtime is required. State is stored under `/var/lib/redis-shake-ui`, and `/readyz` is used for health checks.
 
 Use `compose.yaml` for a persistent deployment or `deploy/compose.dev.yaml` for the browser-to-Redis demo matrix. The original `backend/Dockerfile` and CLI release archives remain unchanged.

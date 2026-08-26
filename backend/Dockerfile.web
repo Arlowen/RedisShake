@@ -14,6 +14,7 @@ WORKDIR /src/backend
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ ./
+COPY --from=frontend-builder /src/frontend/dist/ ./internal/controlplane/webassets/dist/
 RUN CGO_ENABLED=0 go build -trimpath -ldflags "-X main.Version=${VERSION} -X main.GitCommit=${COMMIT}" -o /out/redis-shake ./cmd/redis-shake
 RUN CGO_ENABLED=0 go build -trimpath -ldflags "-X main.Version=${VERSION} -X main.GitCommit=${COMMIT}" -o /out/redis-shake-server ./cmd/redis-shake-server
 
@@ -25,12 +26,10 @@ RUN apk add --no-cache ca-certificates tzdata \
 WORKDIR /app
 COPY --from=backend-builder --chown=redisshake:redisshake /out/redis-shake /app/redis-shake
 COPY --from=backend-builder --chown=redisshake:redisshake /out/redis-shake-server /app/redis-shake-server
-COPY --from=frontend-builder --chown=redisshake:redisshake /src/frontend/dist /app/web
 
 ENV REDISSHAKE_LISTEN_ADDR=0.0.0.0:8080 \
     REDISSHAKE_DATA_DIR=/var/lib/redis-shake-ui \
-    REDISSHAKE_WORKER_PATH=/app/redis-shake \
-    REDISSHAKE_WEB_DIR=/app/web
+    REDISSHAKE_WORKER_PATH=/app/redis-shake
 VOLUME ["/var/lib/redis-shake-ui"]
 EXPOSE 8080
 STOPSIGNAL SIGTERM

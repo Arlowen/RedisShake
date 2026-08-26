@@ -42,6 +42,7 @@ jobs:
 
             -   name: Verify control plane
                 run: |
+                    sh scripts/sync_web_assets.sh
                     go test -race ./internal/controlplane/... ./internal/client ./internal/config ./cmd/redis-shake-server
                     go vet ./...
                     go build -trimpath -o /tmp/redis-shake ./cmd/redis-shake

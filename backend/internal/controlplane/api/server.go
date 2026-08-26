@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"io/fs"
 	"net/http"
+	"os"
 	"time"
 
 	cpconfig "RedisShake/internal/controlplane/config"
@@ -11,6 +13,7 @@ import (
 	"RedisShake/internal/controlplane/engine"
 	"RedisShake/internal/controlplane/store"
 	"RedisShake/internal/controlplane/tasks"
+	"RedisShake/internal/controlplane/webassets"
 )
 
 type BuildInfo struct {
@@ -26,6 +29,7 @@ type Server struct {
 	tasks       *tasks.Service
 	engine      *engine.Manager
 	startedAt   time.Time
+	webFS       fs.FS
 	handler     http.Handler
 }
 
@@ -38,6 +42,11 @@ func NewServer(database *store.Store, config cpconfig.Config, buildInfo BuildInf
 		tasks:       taskService,
 		engine:      engineManager,
 		startedAt:   time.Now().UTC(),
+	}
+	if config.WebDir != "" {
+		server.webFS = os.DirFS(config.WebDir)
+	} else if embedded, available := webassets.FileSystem(); available {
+		server.webFS = embedded
 	}
 	server.handler = server.routes()
 	return server
@@ -107,7 +116,7 @@ func (s *Server) handleSystemInfo(w http.ResponseWriter, _ *http.Request) {
 		"runtime_dir":         s.config.RuntimeDir,
 		"secrets_configured":  s.config.SecretsConfigured(),
 		"worker_path":         s.config.WorkerPath,
-		"web_ui_configured":   s.config.WebDir != "",
+		"web_ui_configured":   s.webFS != nil,
 		"max_concurrent_runs": s.config.MaxConcurrentRuns,
 		"log_retention_days":  s.config.LogRetentionDays,
 	})

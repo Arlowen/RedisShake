@@ -16,6 +16,7 @@ import (
 	"RedisShake/internal/controlplane/store"
 	"RedisShake/internal/controlplane/taskconfig"
 	"RedisShake/internal/controlplane/tasks"
+	"RedisShake/internal/controlplane/webassets"
 )
 
 func TestHealthReadyAndSystemInfo(t *testing.T) {
@@ -53,8 +54,9 @@ func TestHealthReadyAndSystemInfo(t *testing.T) {
 	if payload["worker_path"] != config.WorkerPath {
 		t.Fatalf("worker_path = %#v", payload["worker_path"])
 	}
-	if payload["web_ui_configured"] != false {
-		t.Fatalf("web_ui_configured = %#v", payload["web_ui_configured"])
+	_, embeddedWebAvailable := webassets.FileSystem()
+	if payload["web_ui_configured"] != embeddedWebAvailable {
+		t.Fatalf("web_ui_configured = %#v, want %t", payload["web_ui_configured"], embeddedWebAvailable)
 	}
 	if payload["max_concurrent_runs"] != float64(config.MaxConcurrentRuns) || payload["log_retention_days"] != float64(config.LogRetentionDays) {
 		t.Fatalf("run settings = %#v/%#v", payload["max_concurrent_runs"], payload["log_retention_days"])
@@ -84,18 +86,22 @@ func TestReadinessFailsWhenDatabaseIsClosed(t *testing.T) {
 	}
 }
 
-func TestUnknownRouteReturnsJSON(t *testing.T) {
+func TestUnknownRouteMatchesWebAvailability(t *testing.T) {
 	database, _, handler := newTestServer(t)
 	defer database.Close()
 
 	request := httptest.NewRequest(http.MethodGet, "/missing", nil)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusNotFound {
-		t.Fatalf("GET /missing status = %d", response.Code)
-	}
-	if response.Header().Get("Content-Type") != "application/json; charset=utf-8" {
-		t.Fatalf("GET /missing content type = %q", response.Header().Get("Content-Type"))
+	_, embeddedWebAvailable := webassets.FileSystem()
+	if embeddedWebAvailable {
+		if response.Code != http.StatusOK || !strings.Contains(response.Header().Get("Content-Type"), "text/html") {
+			t.Fatalf("GET /missing status/type = %d/%q", response.Code, response.Header().Get("Content-Type"))
+		}
+	} else {
+		if response.Code != http.StatusNotFound || response.Header().Get("Content-Type") != "application/json; charset=utf-8" {
+			t.Fatalf("GET /missing status/type = %d/%q", response.Code, response.Header().Get("Content-Type"))
+		}
 	}
 }
 
