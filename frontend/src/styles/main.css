@@ -57,8 +57,7 @@ a { color: inherit; }
 .mobile-menu-button { display: none; padding: 6px; color: var(--ink); background: transparent; border: 0; cursor: pointer; }
 .app-body { min-height: calc(100dvh - 64px); display: grid; grid-template-columns: 240px minmax(0,1fr); }
 .app-sidebar { position: sticky; top: 64px; height: calc(100dvh - 64px); display: flex; flex-direction: column; padding: 28px 16px 20px; background: var(--bg); border-right: 1px solid var(--line); }
-.sidebar-scroll { display: grid; gap: 6px; }
-.sidebar-label { margin: 10px 12px 4px; color: var(--muted); font-size: 11px; font-weight: 600; }
+.sidebar-scroll { display: grid; }
 .sidebar-nav { display: grid; gap: 2px; }
 .sidebar-item { min-height: 40px; display: flex; align-items: center; padding: 0 12px; color: var(--ink); font-size: 14px; font-weight: 500; text-decoration: none; border-radius: 8px; }
 .sidebar-item:hover { color: var(--accent); background: var(--surface); }

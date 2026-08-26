@@ -56,6 +56,8 @@ test('creates connections and runs a real RedisShake scan from the UI', async ({
 
 async function createConnection(page: import('@playwright/test').Page, name: string, address: string, targetCheck: boolean) {
   await page.getByRole('button', { name: '新建连接' }).click()
+  await expect(page).toHaveURL(/\/connections\/new$/)
+  await expect(page.getByRole('heading', { name: '新建 Redis 连接' })).toBeVisible()
   await page.getByLabel('连接名称', { exact: true }).fill(name)
   await page.getByLabel('Redis 地址', { exact: true }).fill(address)
   if (targetCheck) {

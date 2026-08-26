@@ -7,6 +7,7 @@ import { ConnectionsProvider } from '@/state/ConnectionsContext'
 import { TasksProvider } from '@/state/TasksContext'
 import { initialTheme } from '@/utils/theme'
 import type { ThemeMode } from '@/utils/theme'
+import ConnectionCreatePage from '@/views/ConnectionCreatePage'
 import ConnectionsView from '@/views/ConnectionsView'
 import SystemView from '@/views/SystemView'
 import TaskDetailView from '@/views/TaskDetailView'
@@ -80,13 +81,8 @@ export default function App() {
                 {menuOpen ? <button type="button" className="sidebar-backdrop" aria-label="关闭侧边栏" onClick={() => setMenuOpen(false)} /> : null}
                 <aside id="app-sidebar" className={`app-sidebar${menuOpen ? ' open' : ''}`}>
                   <div className="sidebar-scroll">
-                    <span className="sidebar-label">数据同步</span>
                     <nav className="sidebar-nav" aria-label="主导航">
-                      {navigation.slice(0, 2).map((item) => <NavLink key={item.name} to={item.to} aria-label={item.label} className={`sidebar-item${activeName === item.name ? ' active' : ''}`}>{item.label}</NavLink>)}
-                    </nav>
-                    <span className="sidebar-label">系统</span>
-                    <nav className="sidebar-nav" aria-label="系统导航">
-                      {navigation.slice(2).map((item) => <NavLink key={item.name} to={item.to} aria-label={item.label} className={`sidebar-item${activeName === item.name ? ' active' : ''}`}>{item.label}</NavLink>)}
+                      {navigation.map((item) => <NavLink key={item.name} to={item.to} aria-label={item.label} className={`sidebar-item${activeName === item.name ? ' active' : ''}`}>{item.label}</NavLink>)}
                     </nav>
                   </div>
                   <div className="sidebar-footer"><span className="status-beacon" /><span>Control plane ready</span></div>
@@ -98,6 +94,7 @@ export default function App() {
                     <Route path="/tasks/:id/edit" element={<TaskEditorPage />} />
                     <Route path="/tasks/:id" element={<TaskDetailView />} />
                     <Route path="/connections" element={<ConnectionsView />} />
+                    <Route path="/connections/new" element={<ConnectionCreatePage />} />
                     <Route path="/system" element={<SystemView />} />
                     <Route path="*" element={<Navigate to="/tasks" replace />} />
                   </Routes>

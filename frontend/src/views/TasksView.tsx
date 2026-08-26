@@ -69,11 +69,11 @@ export default function TasksView() {
 
   return <div className="page-wrap">
     <PageHeader title="同步任务" description="创建、预检并运行 Redis 数据同步任务。">
-      {tasks.items.length ? <Button type="primary" onClick={create}>创建任务</Button> : null}
+      <Button type="primary" onClick={create}>创建任务</Button>
     </PageHeader>
     {tasks.error ? <InlineError className="task-error" message={tasks.error} onRetry={() => void load()} /> : null}
     {tasks.loading && !tasks.items.length ? <div className="skeleton-list">{[0, 1, 2, 3, 4].map((item) => <div key={item} className="skeleton-row" />)}</div>
-      : !tasks.items.length ? <EmptyState title="创建第一条同步任务" description="选择源端和目标端，预检查通过后即可启动 RedisShake。"><Button type="primary" onClick={create}>创建任务</Button></EmptyState>
+      : !tasks.items.length ? null
         : <>
           <div className="compact-summary"><span><strong>{formatNumber(tasks.items.length)}</strong>任务</span><span><strong>{formatNumber(runningCount)}</strong>运行中</span><span><strong>{formatNumber(readyCount)}</strong>可启动</span><span><strong>{formatNumber(totalWritten)}</strong>已写入</span></div>
           <div className="toolbar">
