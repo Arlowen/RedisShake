@@ -60,6 +60,7 @@ sh build.sh
 - `backend/`: RedisShake Go service, build files, runtime configuration, and tests.
 - `frontend/`: Web management console.
 - `docs/`: Project documentation site.
+- [`design.md`](./design.md): Minimal Web console UI specification and acceptance criteria.
 
 The Web control-plane foundation is under `backend/cmd/redis-shake-server`. See [`backend/CONTROL_PLANE.md`](./backend/CONTROL_PLANE.md) for its data layout, configuration, and local run instructions.
 

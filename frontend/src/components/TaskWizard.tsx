@@ -1,4 +1,4 @@
-import { Alert, App, Button, Checkbox, Drawer, Input, InputNumber, Radio, Segmented, Select, Steps, Switch } from 'antd'
+import { Alert, App, Button, Checkbox, Drawer, Input, InputNumber, Radio, Segmented, Select, Switch } from 'antd'
 import { ArrowLeft, ArrowRight, CheckCircle, FloppyDisk, Play, Warning } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -169,53 +169,51 @@ export default function TaskWizard({ open, initialTask, onClose, onCompleted }: 
   const saveLabel = saveState === 'saving' ? '正在保存' : saveState === 'error' ? '保存失败' : task ? '草稿已保存' : '尚未保存'
   const connectionOptions = useMemo(() => connections.selectable.map(({ label, value }) => ({ label, value })), [connections.selectable])
 
-  return <Drawer open={open} width={920} closable={false} rootClassName="task-wizard-drawer" onClose={onClose}
+  return <Drawer open={open} width={760} closable={false} rootClassName="task-wizard-drawer" onClose={onClose}
     title={<div className="wizard-heading"><div><span>创建同步任务</span><small>任务内核由 RedisShake 执行；页面负责生成配置、预检查与生命周期管理。</small></div><span className={`save-indicator ${saveState}`}><FloppyDisk size={15} />{saveLabel}</span></div>}
     footer={<div className="wizard-footer"><div>{current > 0 ? <Button icon={<ArrowLeft size={17} />} onClick={() => setCurrent((value) => value - 1)}>上一步</Button> : null}</div><div className="footer-actions"><Button onClick={onClose}>稍后继续</Button>{current < 5 ? <Button type="primary" onClick={() => void next()}>下一步<ArrowRight size={17} /></Button> : !canStart ? <Button type="primary" loading={prechecking} disabled={hasWarnings && !acknowledgeWarnings} onClick={() => void runPrecheck()}>执行预检查</Button> : <Button type="primary" loading={starting} icon={<Play size={17} weight="fill" />} onClick={() => void start()}>启动任务</Button>}</div></div>}>
-    <div className="wizard-layout">
-      <aside><Steps direction="vertical" size="small" current={current} items={steps} /></aside>
-      <section className="wizard-body">
+    <div className="wizard-progress"><div><span>步骤 {current + 1} / {steps.length}</span><strong>{steps[current]?.title}</strong></div><div className="progress-track"><span style={{ width: `${((current + 1) / steps.length) * 100}%` }} /></div></div>
+    <section className="wizard-body">
         {current === 0 ? <div className="step-panel">
-          <StepIntro number="01" title="先定义迁移意图" description="任务名称用于列表检索；同步模式决定 RedisShake reader。" />
+          <StepIntro title="定义迁移任务" description="任务名称用于检索，同步模式决定 RedisShake reader。" />
           <label><span>任务名称</span><Input value={spec.name} size="large" placeholder="例如：订单缓存迁移" onChange={(event) => setSpec((value) => ({ ...value, name: event.target.value }))} /></label>
           <label><span>任务描述</span><Input.TextArea value={spec.description} rows={3} placeholder="记录迁移窗口、负责人或业务范围" onChange={(event) => setSpec((value) => ({ ...value, description: event.target.value }))} /></label>
           <label><span>同步模式</span><Radio.Group value={spec.mode} className="mode-picker" onChange={(event) => changeMode(event.target.value as TaskMode)}><Radio.Button value="sync"><strong>增量同步</strong><small>RDB 全量 + AOF 持续同步</small></Radio.Button><Radio.Button value="scan"><strong>扫描迁移</strong><small>SCAN 一次性搬迁，结束后退出</small></Radio.Button></Radio.Group></label>
         </div> : current === 1 ? <div className="step-panel">
-          <StepIntro number="02" title="选择源端 Redis" description="预检查会读取版本、角色和拓扑，不会写入源端。" />
+          <StepIntro title="选择源端 Redis" description="预检查会读取版本、角色和拓扑，不会写入源端。" />
           <label><span>源端连接</span><Select value={spec.source_connection_id} showSearch size="large" placeholder="选择已保存连接" options={connectionOptions} optionFilterProp="label" onChange={(source_connection_id) => setSpec((value) => ({ ...value, source_connection_id }))} /></label>
           {sourceConnection ? <ConnectionPreview connection={sourceConnection} /> : null}
           {!connections.items.length ? <Alert type="warning" showIcon message="还没有连接" description="请先关闭向导并在连接管理中创建源端和目标端。" /> : null}
         </div> : current === 2 ? <div className="step-panel">
-          <StepIntro number="03" title="选择目标 Redis" description="预检查会写入一个 60 秒 TTL 的随机 Key 来证明写权限，并立即清理。" />
+          <StepIntro title="选择目标 Redis" description="预检查会写入临时 Key 验证权限，并立即清理。" />
           <label><span>目标连接</span><Select value={spec.target_connection_id} showSearch size="large" placeholder="选择已保存连接" options={connectionOptions} optionFilterProp="label" onChange={(target_connection_id) => setSpec((value) => ({ ...value, target_connection_id }))} /></label>
           {targetConnection ? <ConnectionPreview connection={targetConnection} /> : null}
           {spec.source_connection_id && spec.source_connection_id === spec.target_connection_id ? <Alert type="error" showIcon message="源端和目标端相同" description="请选择不同的连接，避免数据覆盖或同步回环。" /> : null}
         </div> : current === 3 ? <div className="step-panel">
-          <StepIntro number="04" title="限定同步范围" description="同一维度只能选择 allow 或 block。每行一个值，也支持逗号分隔。" />
+          <StepIntro title="限定同步范围" description="同一维度选择允许或排除；每行一个值，也支持逗号分隔。" />
           <label><span>过滤策略</span><Segmented value={filterMode} options={[{ label: '不过滤', value: 'none' }, { label: '仅允许', value: 'allow' }, { label: '排除', value: 'block' }]} onChange={(value) => setFilterMode(value as FilterMode)} /></label>
           {filterMode !== 'none' ? <><div className="form-grid two"><label><span>Key 前缀</span><Input.TextArea value={keyPrefixes} rows={4} placeholder={'cache:\nsession:'} onChange={(event) => setKeyPrefixes(event.target.value)} /></label><label><span>Key 正则</span><Input.TextArea value={keyRegex} rows={4} placeholder="^order:\\d+$" onChange={(event) => setKeyRegex(event.target.value)} /></label></div><div className="form-grid two"><label><span>命令</span><Input.TextArea value={commands} rows={3} placeholder={'SET\nHSET'} onChange={(event) => setCommands(event.target.value)} /></label><label><span>命令组</span><Input.TextArea value={commandGroups} rows={3} placeholder={'SCRIPTING\nPUBSUB'} onChange={(event) => setCommandGroups(event.target.value)} /></label></div></> : null}
           <label><span>{spec.mode === 'scan' ? '扫描 DB' : 'DB 过滤'}</span><Input value={databaseIds} placeholder="例如：0, 1, 5；留空表示全部" onChange={(event) => setDatabaseIds(event.target.value)} /></label>
           {spec.mode === 'scan' && spec.scan_reader ? <div className="form-grid two"><label><span>SCAN Count</span><InputNumber value={spec.scan_reader.count} min={1} max={10000} onChange={(count) => setSpec((value) => ({ ...value, scan_reader: value.scan_reader ? { ...value.scan_reader, count: count ?? 1 } : value.scan_reader }))} /></label><label className="switch-field"><span>订阅 Keyspace Notification</span><Switch checked={spec.scan_reader.ksn} onChange={(ksn) => setSpec((value) => ({ ...value, scan_reader: value.scan_reader ? { ...value.scan_reader, ksn } : value.scan_reader }))} /></label></div> : null}
         </div> : current === 4 ? <div className="step-panel">
-          <StepIntro number="05" title="性能与冲突处理" description="默认参数适用于一般迁移；危险操作会在预检查中要求确认。" />
+          <StepIntro title="性能与冲突处理" description="默认参数适用于一般迁移，危险操作会要求确认。" />
           <div className="form-grid two"><label><span>目标最大 QPS</span><InputNumber value={spec.advanced.target_redis_max_qps} min={1} max={300000} onChange={(target_redis_max_qps) => setSpec((value) => ({ ...value, advanced: { ...value.advanced, target_redis_max_qps: target_redis_max_qps ?? 1 } }))} /></label><label><span>Pipeline Count</span><InputNumber value={spec.advanced.pipeline_count_limit} min={1} onChange={(pipeline_count_limit) => setSpec((value) => ({ ...value, advanced: { ...value.advanced, pipeline_count_limit: pipeline_count_limit ?? 1 } }))} /></label></div>
           <label><span>目标 Key 已存在时</span><Select value={spec.advanced.rdb_restore_command_behavior} options={[{ value: 'panic', label: '停止任务（推荐）' }, { value: 'rewrite', label: '覆盖目标 Key' }, { value: 'skip', label: '跳过冲突 Key' }]} onChange={(rdb_restore_command_behavior) => setSpec((value) => ({ ...value, advanced: { ...value.advanced, rdb_restore_command_behavior } }))} /></label>
           <div className="danger-setting"><div><Warning size={22} /><span><strong>启动前清空目标 Redis</strong><small>会执行 FLUSHALL，目标端现有数据不可恢复。</small></span></div><Switch checked={spec.advanced.empty_db_before_sync} onChange={(empty_db_before_sync) => setSpec((value) => ({ ...value, advanced: { ...value.advanced, empty_db_before_sync } }))} /></div>
           {spec.mode === 'sync' && spec.sync_reader ? <div className="form-grid two"><label className="switch-field"><span>同步 RDB 阶段</span><Switch checked={spec.sync_reader.sync_rdb} onChange={(sync_rdb) => setSpec((value) => ({ ...value, sync_reader: value.sync_reader ? { ...value.sync_reader, sync_rdb } : value.sync_reader }))} /></label><label className="switch-field"><span>持续同步 AOF</span><Switch checked={spec.sync_reader.sync_aof} onChange={(sync_aof) => setSpec((value) => ({ ...value, sync_reader: value.sync_reader ? { ...value.sync_reader, sync_aof } : value.sync_reader }))} /></label></div> : null}
         </div> : <div className="step-panel review-panel">
-          <StepIntro number="06" title="预检查与启动" description="只有阻断项为零，并确认所有危险警告后，任务才会进入 READY。" />
+          <StepIntro title="预检查与启动" description="修复阻断项并确认危险警告后即可启动。" />
           <div className="review-route"><ReviewConnection title="源端" connection={sourceConnection} /><ArrowRight size={22} /><ReviewConnection title="目标端" connection={targetConnection} /></div>
           {precheckResult ? <CheckResultPanel checks={precheckResult.checks} title="任务预检查" /> : null}
           {hasWarnings ? <div className="warning-ack"><Checkbox checked={acknowledgeWarnings} onChange={(event) => setAcknowledgeWarnings(event.target.checked)}>我已阅读并确认上述危险警告</Checkbox><Button loading={prechecking} onClick={() => void runPrecheck()}>重新检查</Button></div> : null}
           {precheckResult?.config_digest ? <div className="digest-line"><CheckCircle size={18} weight="fill" /><span>配置摘要</span><code>{precheckResult.config_digest}</code></div> : null}
         </div>}
-      </section>
-    </div>
+    </section>
   </Drawer>
 }
 
-function StepIntro({ number, title, description }: { number: string; title: string; description: string }) {
-  return <div className="step-intro"><span>{number}</span><div><h2>{title}</h2><p>{description}</p></div></div>
+function StepIntro({ title, description }: { title: string; description: string }) {
+  return <div className="step-intro"><h2>{title}</h2><p>{description}</p></div>
 }
 
 function ConnectionPreview({ connection }: { connection: import('@/api/types').Connection }) {

@@ -120,15 +120,20 @@ export default function TaskDetailView() {
   return <div className="page-wrap detail-page">
     <button className="back-link" type="button" onClick={() => navigate('/tasks')}><ArrowLeft size={16} />返回任务列表</button>
     {loading ? <div className="skeleton-list">{[0, 1, 2, 3, 4].map((item) => <div key={item} className="skeleton-row" />)}</div> : error ? <InlineError message={error} onRetry={() => void load()} /> : task ? <>
-      <PageHeader eyebrow="Task detail" title={task.spec.name} description={`${modeLabel[task.spec.mode]} · revision ${task.config_revision} · 最近更新 ${formatDate(task.updated_at)}`}>
-        <Button icon={<ArrowsClockwise size={17} />} onClick={() => void load()}>刷新</Button>
+      <PageHeader title={task.spec.name} description={`${modeLabel[task.spec.mode]} · revision ${task.config_revision} · ${formatDate(task.updated_at)}`}>
+        <Button type="text" icon={<ArrowsClockwise size={16} />} onClick={() => void load()}>刷新</Button>
         {task.state === 'READY' && !isActive(selectedRun) ? <Button type="primary" loading={actionLoading} icon={<Play size={17} weight="fill" />} onClick={() => void start()}>启动</Button> : null}
         {isActive(selectedRun) ? <Button danger loading={actionLoading} icon={<Stop size={17} weight="fill" />} onClick={() => confirmStop(false)}>停止</Button> : null}
         {selectedRun?.state === 'STOPPING' ? <Button danger type="primary" onClick={() => confirmStop(true)}>强制终止</Button> : null}
       </PageHeader>
-      <div className="detail-status-line"><StatusPill label={taskStateMeta[task.state].label} tone={taskStateMeta[task.state].tone} />{selectedRun ? <><StatusPill label={runStateMeta[selectedRun.state].label} tone={runStateMeta[selectedRun.state].tone} pulse={selectedRun.state === 'RUNNING'} /><span className="mono">Run {selectedRun.id.slice(0, 12)}</span></> : null}</div>
+      <div className="detail-summary">
+        <div className="detail-statuses"><StatusPill label={taskStateMeta[task.state].label} tone={taskStateMeta[task.state].tone} />{selectedRun ? <><StatusPill label={runStateMeta[selectedRun.state].label} tone={runStateMeta[selectedRun.state].tone} pulse={selectedRun.state === 'RUNNING'} /><span className="mono">{selectedRun.id.slice(0, 12)}</span></> : <span className="muted">尚未运行</span>}</div>
+        <div><small>心跳</small><strong>{selectedRun?.status_healthy ? '正常' : selectedRun ? '不可用' : '—'}</strong></div>
+        <div><small>读取</small><strong className="mono">{formatNumber(metrics?.read_count)}</strong></div>
+        <div><small>写入</small><strong className="mono">{formatNumber(metrics?.write_count)}</strong></div>
+        <div><small>OPS</small><strong className="mono">{formatNumber(metrics?.write_ops)}</strong></div>
+      </div>
       {selectedRun?.state === 'UNKNOWN' ? <Alert type="warning" showIcon message="运行归属无法确认" description="控制面重启后不会向这个 PID 发送信号，也不会允许同任务重复启动。请在主机上核对进程后处理。" /> : null}
-      <div className="metric-strip detail-metrics"><div className="metric"><label>RedisShake 状态</label><strong>{selectedRun?.status_healthy ? '心跳正常' : selectedRun ? '无实时心跳' : '尚未运行'}</strong></div><div className="metric"><label>累计读取</label><strong className="mono">{formatNumber(metrics?.read_count)}</strong></div><div className="metric"><label>累计写入</label><strong className="mono">{formatNumber(metrics?.write_count)}</strong></div><div className="metric"><label>当前 OPS</label><strong className="mono">{formatNumber(metrics?.write_ops)}</strong></div></div>
       <Tabs activeKey={activeTab} className="detail-tabs" items={tabItems} onChange={setActiveTab} />
     </> : null}
   </div>

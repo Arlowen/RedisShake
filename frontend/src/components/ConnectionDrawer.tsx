@@ -1,5 +1,5 @@
 import { App, Button, Collapse, Drawer, Input, Segmented, Select, Switch } from 'antd'
-import { Flask, FloppyDisk, ShieldCheck } from '@phosphor-icons/react'
+import { Flask, FloppyDisk } from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { api } from '@/api/client'
@@ -109,8 +109,8 @@ export default function ConnectionDrawer({ open, connection, onClose, onSaved }:
   }
 
   return (
-    <Drawer open={open} width={680} closable={false} rootClassName="console-drawer" onClose={onClose}
-      title={<div className="drawer-title"><span>{editing ? '编辑 Redis 连接' : '新建 Redis 连接'}</span><small>凭据会在控制面加密存储，页面不会再次回显。</small></div>}
+    <Drawer open={open} width={560} closable={false} rootClassName="console-drawer" onClose={onClose}
+      title={<div className="drawer-title"><span>{editing ? '编辑连接' : '新建连接'}</span><small>凭据加密存储且不会回显。</small></div>}
       footer={<div className="drawer-footer"><Button onClick={onClose}>取消</Button><Button type="primary" loading={saving} icon={<FloppyDisk size={17} />} onClick={() => void save()}>保存连接</Button></div>}>
       <div className="connection-form">
         <section className="form-section">
@@ -136,7 +136,7 @@ export default function ConnectionDrawer({ open, connection, onClose, onSaved }:
         </section> : null}
         <section className="form-section">
           <div className="form-section-title"><span>TLS</span><small>默认校验证书；关闭校验仅适合受控测试环境</small></div>
-          <div className="tls-switch"><ShieldCheck size={22} /><span>Redis TLS</span><Switch checked={form.tls.enabled} onChange={(enabled) => setTLS({ enabled })} /></div>
+          <div className="tls-switch"><span>Redis TLS</span><Switch checked={form.tls.enabled} onChange={(enabled) => setTLS({ enabled })} /></div>
           {form.tls.enabled ? <>
             <div className="form-grid two">
               <label><span>Server name</span><Input value={form.tls.server_name} placeholder="redis.internal" onChange={(event) => setTLS({ server_name: event.target.value })} /></label>

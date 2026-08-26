@@ -72,41 +72,37 @@ export default function TasksView() {
   }
 
   return <div className="page-wrap">
-    <PageHeader eyebrow="Migration control" title="同步任务" description="用向导生成 RedisShake 配置，先验证连接和危险参数，再启动独立 worker 并持续读取真实状态。">
-      <Button type="primary" icon={<Plus size={17} />} onClick={create}>创建同步任务</Button>
+    <PageHeader title="同步任务" description="创建、预检并运行 Redis 数据同步任务。">
+      {tasks.items.length ? <Button type="primary" icon={<Plus size={16} />} onClick={create}>创建任务</Button> : null}
     </PageHeader>
-    <div className="metric-strip task-metrics">
-      <div className="metric"><label>任务总数</label><strong className="mono">{formatNumber(tasks.items.length)}</strong></div>
-      <div className="metric"><label>活动运行</label><strong className="mono">{formatNumber(runningCount)}</strong></div>
-      <div className="metric"><label>可启动</label><strong className="mono">{formatNumber(readyCount)}</strong></div>
-      <div className="metric"><label>累计写入</label><strong className="mono">{formatNumber(totalWritten)}</strong></div>
-    </div>
     {tasks.error ? <InlineError className="task-error" message={tasks.error} onRetry={() => void load()} /> : null}
-    <div className="toolbar">
-      <div className="toolbar-left search-box"><MagnifyingGlass size={18} /><Input value={query} variant="borderless" placeholder="搜索任务名称" onChange={(event) => setQuery(event.target.value)} /></div>
-      <div className="toolbar-right"><Segmented value={stateFilter} options={[{ label: '全部', value: 'all' }, { label: '草稿', value: 'DRAFT' }, { label: '可启动', value: 'READY' }]} onChange={(value) => setStateFilter(value as StateFilter)} /><Select value={sortOrder} style={{ width: 124 }} options={[{ label: '最近更新', value: 'updated' }, { label: '任务名称', value: 'name' }, { label: '任务状态', value: 'state' }]} onChange={(value) => setSortOrder(value)} /><Button type="text" aria-label="刷新任务" loading={tasks.loading} icon={<ArrowsClockwise size={17} />} onClick={() => void load()} /></div>
-    </div>
     {tasks.loading && !tasks.items.length ? <div className="skeleton-list">{[0, 1, 2, 3, 4].map((item) => <div key={item} className="skeleton-row" />)}</div>
-      : !tasks.items.length ? <EmptyState title="创建第一条同步链路" description="准备好源端与目标端 Redis 连接后，通过六步向导生成配置、执行预检查并启动 RedisShake。"><Button type="primary" onClick={create}>创建同步任务</Button></EmptyState>
-        : filtered.length ? <div className="data-surface task-table">{filtered.map((task, index) => {
+      : !tasks.items.length ? <EmptyState title="创建第一条同步任务" description="选择源端和目标端，预检查通过后即可启动 RedisShake。"><Button type="primary" onClick={create}>创建任务</Button></EmptyState>
+        : <>
+          <div className="compact-summary"><span><strong>{formatNumber(tasks.items.length)}</strong>任务</span><span><strong>{formatNumber(runningCount)}</strong>运行中</span><span><strong>{formatNumber(readyCount)}</strong>可启动</span><span><strong>{formatNumber(totalWritten)}</strong>已写入</span></div>
+          <div className="toolbar">
+            <div className="toolbar-left search-box"><MagnifyingGlass size={16} /><Input value={query} variant="borderless" placeholder="搜索任务" onChange={(event) => setQuery(event.target.value)} /></div>
+            <div className="toolbar-right"><Segmented size="small" value={stateFilter} options={[{ label: '全部', value: 'all' }, { label: '草稿', value: 'DRAFT' }, { label: '可启动', value: 'READY' }]} onChange={(value) => setStateFilter(value as StateFilter)} /><Select size="small" value={sortOrder} style={{ width: 112 }} options={[{ label: '最近更新', value: 'updated' }, { label: '任务名称', value: 'name' }, { label: '任务状态', value: 'state' }]} onChange={(value) => setSortOrder(value)} /><Button type="text" aria-label="刷新任务" loading={tasks.loading} icon={<ArrowsClockwise size={16} />} onClick={() => void load()} /></div>
+          </div>
+          {filtered.length ? <div className="data-surface task-table">{filtered.map((task, index) => {
           const latest = latestRuns[task.id]
           return <div key={task.id} className="data-row task-row" style={{ '--row-index': index } as CSSProperties} onDoubleClick={() => navigate(`/tasks/${task.id}`)}>
-            <div className="task-identity"><span className="mode-code">{task.spec.mode === 'sync' ? 'SY' : 'SC'}</span><div><strong>{task.spec.name}</strong><small>{modeLabel[task.spec.mode]} · revision {task.config_revision}</small></div></div>
+            <div className="task-identity"><strong>{task.spec.name}</strong><small>{modeLabel[task.spec.mode]} · revision {task.config_revision}</small></div>
             <div className="route-cell"><span>{connectionName(task.spec.source_connection_id)}</span><ArrowRight size={14} /><span>{connectionName(task.spec.target_connection_id)}</span></div>
-            <div><small>任务状态</small><StatusPill label={taskStateMeta[task.state].label} tone={taskStateMeta[task.state].tone} /></div>
-            <div><small>最新运行</small>{latest ? <StatusPill label={runStateMeta[latest.state].label} tone={runStateMeta[latest.state].tone} pulse={latest.state === 'RUNNING'} /> : <span className="muted">尚未运行</span>}</div>
-            <div><small>更新时间</small><strong>{formatDate(task.updated_at)}</strong></div>
+            <div className="task-statuses"><StatusPill label={taskStateMeta[task.state].label} tone={taskStateMeta[task.state].tone} />{latest ? <StatusPill label={runStateMeta[latest.state].label} tone={runStateMeta[latest.state].tone} pulse={latest.state === 'RUNNING'} /> : <span className="muted">未运行</span>}</div>
+            <div className="row-meta">{formatDate(task.updated_at)}</div>
             <div className="row-actions">
-              {task.state === 'DRAFT' ? <Button onClick={() => edit(task)}>继续配置</Button> : <Button type="primary" ghost loading={startingId === task.id} disabled={latest?.state === 'RUNNING'} icon={<Play size={15} weight="fill" />} onClick={() => void start(task)}>启动</Button>}
+              {task.state === 'DRAFT' ? <Button size="small" onClick={() => edit(task)}>继续配置</Button> : <Button size="small" loading={startingId === task.id} disabled={latest?.state === 'RUNNING'} icon={<Play size={14} weight="fill" />} onClick={() => void start(task)}>启动</Button>}
               <Dropdown menu={{ items: [
                 { key: 'view', label: '查看详情', onClick: () => navigate(`/tasks/${task.id}`) },
                 { key: 'edit', label: '编辑配置', onClick: () => edit(task) },
                 { key: 'copy', label: '复制任务', icon: <Copy size={15} />, onClick: () => void copy(task) },
                 { key: 'archive', label: '归档', icon: <Archive size={15} />, danger: true, onClick: () => archive(task) },
-              ] }}><Button type="text" aria-label={`${task.spec.name} 更多操作`} icon={<DotsThree size={20} />} /></Dropdown>
+              ] }}><Button type="text" size="small" aria-label={`${task.spec.name} 更多操作`} icon={<DotsThree size={18} />} /></Dropdown>
             </div>
           </div>
-        })}</div> : <EmptyState title="没有匹配的任务" description="调整搜索词或状态筛选后再试。" />}
+        })}</div> : <EmptyState title="没有匹配的任务" description="调整搜索或状态筛选。" />}
+        </>}
     <TaskWizard open={wizardOpen} initialTask={editingTask} onClose={() => setWizardOpen(false)} onCompleted={completed} />
   </div>
 }

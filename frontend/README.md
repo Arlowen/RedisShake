@@ -2,6 +2,8 @@
 
 React 19 + TypeScript control-plane UI for creating, prechecking, running, and monitoring RedisShake tasks. Webpack provides the development server and production build; Vite is not used.
 
+The UI hierarchy, tokens, responsive rules, and acceptance criteria are defined in [`../design.md`](../design.md).
+
 ## Development
 
 ```shell
