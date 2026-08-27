@@ -76,9 +76,13 @@ a { color: inherit; }
 
 .compact-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; min-height: 48px; color: var(--muted); font-size: 13px; border-bottom: 1px solid var(--line); }
 .compact-summary strong { margin-right: 4px; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; }
-.toolbar { min-height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; }
-.toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 8px; }
+.list-toolbar { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.list-search { width: min(320px, 100%); }
+.toolbar-right { display: flex; align-items: center; gap: 8px; }
+.list-empty-row { min-height: 72px; display: flex; align-items: center; justify-content: center; padding: 16px; color: var(--muted); font-size: 13px; border-bottom: 1px solid var(--line); }
 .data-surface { margin-top: 12px; overflow: hidden; background: var(--surface); border-radius: 12px; }
+.data-table-header { display: grid; align-items: center; gap: 14px; min-height: 40px; padding: 0 18px; color: var(--muted); font-size: 10px; font-weight: 600; border-bottom: 1px solid var(--line); }
+.data-table-header > span:last-child { text-align: right; }
 .data-row { display: grid; align-items: center; gap: 14px; min-height: 64px; padding: 12px 18px; border-bottom: 1px solid var(--line); transition: background .15s ease, transform .15s ease; }
 .data-row:last-child { border-bottom: 0; }
 .data-row:hover { background: var(--surface-alt); }
@@ -123,8 +127,9 @@ a { color: inherit; }
   .app-main { padding: 48px 24px 64px; }
   .page-header { grid-template-columns: 1fr; align-items: start; gap: 18px; margin-bottom: 28px; }
   .page-header h1 { font-size: 28px; line-height: 36px; }
-  .toolbar { align-items: stretch; flex-direction: column; }
-  .toolbar-left, .toolbar-right { width: 100%; flex-wrap: wrap; }
+  .list-toolbar { align-items: stretch; flex-direction: column; }
+  .list-search, .toolbar-right { width: 100%; }
+  .toolbar-right { flex-wrap: wrap; }
   .page-actions { width: 100%; }
 }
 

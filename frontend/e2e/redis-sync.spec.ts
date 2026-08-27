@@ -26,10 +26,17 @@ test('creates connections and runs a real RedisShake scan from the UI', async ({
   expect(composeExec('source-redis', 'redis-cli', 'SET', skippedKey, 'filtered')).toBe('OK')
 
   await page.goto('/connections')
+  await expect(page.getByLabel('搜索连接')).toBeVisible()
   await createConnection(page, sourceName, 'source-redis:6379', false)
   await createConnection(page, targetName, 'target-redis:6379', true)
+  await expect(page.getByText('连接名称 / 地址', { exact: true })).toBeVisible()
+  await page.getByLabel('搜索连接').fill(sourceName)
+  await expect(page.getByText(sourceName, { exact: true })).toBeVisible()
+  await expect(page.getByText(targetName, { exact: true })).toBeHidden()
+  await page.getByLabel('搜索连接').clear()
 
   await page.getByRole('link', { name: '同步任务' }).click()
+  await expect(page.getByLabel('搜索任务')).toBeVisible()
   await page.getByRole('button', { name: '创建任务' }).first().click()
   await expect(page).toHaveURL(/\/tasks\/new$/)
   await expect(page.getByRole('heading', { name: '创建同步任务' })).toBeVisible()

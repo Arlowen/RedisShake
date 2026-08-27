@@ -6,9 +6,9 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 
 import App from '@/App'
-import { initialTheme } from '@/utils/theme'
+import { initialThemePreference, resolveTheme } from '@/utils/theme'
 
-const bootTheme = initialTheme()
+const bootTheme = resolveTheme(initialThemePreference())
 document.documentElement.dataset.theme = bootTheme
 document.documentElement.style.colorScheme = bootTheme
 
