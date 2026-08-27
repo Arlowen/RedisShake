@@ -28,8 +28,14 @@ describe('theme preference', () => {
 
 describe('workspace page context', () => {
   it.each([
-    ['/tasks', '数据同步', '同步任务'],
-    ['/connections', '数据同步', '连接管理'],
+    ['/tasks', '同步任务'],
+    ['/connections', '连接管理'],
+  ])('shows %s without a redundant parent label', (path, title) => {
+    expect(resolvePageContext(path)).toEqual(expect.objectContaining({ title }))
+    expect(resolvePageContext(path).parent).toBeUndefined()
+  })
+
+  it.each([
     ['/system', '系统', '系统信息'],
   ])('moves %s into the shared top workspace header', (path, parent, title) => {
     expect(resolvePageContext(path)).toMatchObject({ parent, title })

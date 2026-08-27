@@ -1,5 +1,5 @@
 import { App, Button, Dropdown, Modal, Segmented, Select } from 'antd'
-import { Archive, ArrowRight, Copy, DotsThree, Play } from '@phosphor-icons/react'
+import { Archive, ArrowRight, Copy, DotsThree, Play, Plus } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -68,7 +68,7 @@ export default function TasksView() {
   }
 
   return <PageScaffold error={tasks.error} errorClassName="task-error" onRetry={() => void load()}>
-    <PageToolbar ariaLabel="同步任务工具栏" search={{ value: query, placeholder: '搜索任务名称', ariaLabel: '搜索任务', onChange: setQuery }} refreshing={tasks.loading} refreshLabel="刷新任务" onRefresh={() => void load()}>
+    <PageToolbar ariaLabel="同步任务工具栏" search={{ value: query, placeholder: '搜索任务名称', ariaLabel: '搜索任务', onChange: setQuery }} refreshing={tasks.loading} refreshLabel="刷新任务" onRefresh={() => void load()} afterRefresh={<Button type="primary" size="small" icon={<Plus size={14} />} onClick={() => navigate('/tasks/new')}>创建任务</Button>}>
       <Segmented size="small" value={stateFilter} options={[{ label: '全部', value: 'all' }, { label: '草稿', value: 'DRAFT' }, { label: '可启动', value: 'READY' }]} onChange={(value) => setStateFilter(value as StateFilter)} />
       <Select size="small" value={sortOrder} aria-label="任务排序" style={{ width: 112 }} options={[{ label: '最近更新', value: 'updated' }, { label: '任务名称', value: 'name' }, { label: '任务状态', value: 'state' }]} onChange={(value) => setSortOrder(value)} />
     </PageToolbar>

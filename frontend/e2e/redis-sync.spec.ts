@@ -37,7 +37,7 @@ test('creates connections and runs a real RedisShake scan from the UI', async ({
 
   await page.getByRole('link', { name: '同步任务' }).click()
   await expect(page.getByLabel('搜索任务')).toBeVisible()
-  await page.getByRole('link', { name: '创建任务' }).click()
+  await page.getByRole('button', { name: '创建任务' }).click()
   await expect(page).toHaveURL(/\/tasks\/new$/)
   await expect(page.getByRole('heading', { name: '创建同步任务' })).toBeVisible()
   await page.getByLabel('任务名称', { exact: true }).fill(taskName)

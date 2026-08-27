@@ -97,8 +97,8 @@ export default function App() {
                 <header className="app-topbar">
                   <div className="topbar-inner">
                     <NavLink className="brand mobile-brand" to="/tasks" aria-label="RedisShake Console"><strong>RedisShake</strong></NavLink>
-                    <div className="topbar-context" aria-label={`${pageContext.parent} / ${pageContext.title}`}>
-                      <span>{pageContext.parent}</span><span className="topbar-separator">/</span><h1>{pageContext.title}</h1>
+                    <div className="topbar-context" aria-label={pageContext.parent ? `${pageContext.parent} / ${pageContext.title}` : pageContext.title}>
+                      {pageContext.parent ? <><span>{pageContext.parent}</span><span className="topbar-separator">/</span></> : null}<h1>{pageContext.title}</h1>
                     </div>
                   <div className="topbar-actions">
                     {pageContext.action ? <NavLink className="topbar-primary-action" to={pageContext.action.to} aria-label={pageContext.action.label}><Plus size={16} /><span>{pageContext.action.label}</span></NavLink> : null}

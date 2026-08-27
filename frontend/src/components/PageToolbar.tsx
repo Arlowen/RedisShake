@@ -14,12 +14,13 @@ interface PageToolbarProps {
   search?: SearchControl
   leading?: ReactNode
   children?: ReactNode
+  afterRefresh?: ReactNode
   refreshing?: boolean
   refreshLabel: string
   onRefresh: () => void
 }
 
-export default function PageToolbar({ ariaLabel, search, leading, children, refreshing, refreshLabel, onRefresh }: PageToolbarProps) {
+export default function PageToolbar({ ariaLabel, search, leading, children, afterRefresh, refreshing, refreshLabel, onRefresh }: PageToolbarProps) {
   return (
     <section className="page-toolbar" aria-label={ariaLabel}>
       <div className="toolbar-leading">
@@ -28,6 +29,7 @@ export default function PageToolbar({ ariaLabel, search, leading, children, refr
       <div className="toolbar-right">
         {children}
         <Button type="text" aria-label={refreshLabel} title={refreshLabel} loading={refreshing} icon={<ArrowsClockwise size={16} />} onClick={onRefresh} />
+        {afterRefresh}
       </div>
     </section>
   )

@@ -19,4 +19,13 @@ describe('PageToolbar', () => {
     expect(onRefresh).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('button', { name: '全部拓扑' })).toBeInTheDocument()
   })
+
+  it('places a primary action after the refresh control', () => {
+    const { container } = render(
+      <PageToolbar ariaLabel="同步任务工具栏" refreshLabel="刷新任务" onRefresh={() => undefined} afterRefresh={<button type="button">创建任务</button>} />,
+    )
+
+    const controls = Array.from(container.querySelector('.toolbar-right')?.querySelectorAll('button') ?? [])
+    expect(controls.map((control) => control.getAttribute('aria-label') || control.textContent)).toEqual(['刷新任务', '创建任务'])
+  })
 })

@@ -1,5 +1,5 @@
 export interface PageContext {
-  parent: string
+  parent?: string
   title: string
   action?: {
     label: string
@@ -12,7 +12,7 @@ export function resolvePageContext(pathname: string): PageContext {
   if (/^\/tasks\/[^/]+\/edit$/.test(pathname)) return { parent: '同步任务', title: '编辑任务' }
   if (/^\/tasks\/[^/]+$/.test(pathname)) return { parent: '同步任务', title: '任务详情' }
   if (pathname === '/connections/new') return { parent: '连接管理', title: '新建连接' }
-  if (pathname.startsWith('/connections')) return { parent: '数据同步', title: '连接管理', action: { label: '新建连接', to: '/connections/new' } }
+  if (pathname.startsWith('/connections')) return { title: '连接管理', action: { label: '新建连接', to: '/connections/new' } }
   if (pathname.startsWith('/system')) return { parent: '系统', title: '系统信息' }
-  return { parent: '数据同步', title: '同步任务', action: { label: '创建任务', to: '/tasks/new' } }
+  return { title: '同步任务' }
 }
