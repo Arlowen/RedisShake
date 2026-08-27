@@ -49,7 +49,6 @@ export default function TasksView() {
   const totalWritten = Object.values(latestRuns).reduce((total, run) => total + (run?.status?.total_entries_count?.write_count ?? 0), 0)
 
   function connectionName(id?: string) { return id ? connections.items.find((item) => item.id === id)?.name ?? '连接已删除' : '未选择' }
-  function create() { navigate('/tasks/new') }
   function edit(task: Task) { navigate(`/tasks/${task.id}/edit`) }
 
   async function start(task: Task) {
@@ -68,7 +67,7 @@ export default function TasksView() {
     catch (cause) { message.error(cause instanceof Error ? cause.message : '复制失败') }
   }
 
-  return <PageScaffold title="同步任务" description="创建、预检并运行 Redis 数据同步任务。" actions={<Button type="primary" onClick={create}>创建任务</Button>} error={tasks.error} errorClassName="task-error" onRetry={() => void load()}>
+  return <PageScaffold error={tasks.error} errorClassName="task-error" onRetry={() => void load()}>
     <PageToolbar ariaLabel="同步任务工具栏" search={{ value: query, placeholder: '搜索任务名称', ariaLabel: '搜索任务', onChange: setQuery }} refreshing={tasks.loading} refreshLabel="刷新任务" onRefresh={() => void load()}>
       <Segmented size="small" value={stateFilter} options={[{ label: '全部', value: 'all' }, { label: '草稿', value: 'DRAFT' }, { label: '可启动', value: 'READY' }]} onChange={(value) => setStateFilter(value as StateFilter)} />
       <Select size="small" value={sortOrder} aria-label="任务排序" style={{ width: 112 }} options={[{ label: '最近更新', value: 'updated' }, { label: '任务名称', value: 'name' }, { label: '任务状态', value: 'state' }]} onChange={(value) => setSortOrder(value)} />

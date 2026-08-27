@@ -1,7 +1,6 @@
 import { App, Button, Dropdown, Modal, Select } from 'antd'
 import { Copy, DotsThree, Trash } from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 import type { Connection, Topology } from '@/api/types'
 import ConnectionDrawer from '@/components/ConnectionDrawer'
@@ -14,7 +13,6 @@ import { useConnections } from '@/state/ConnectionsContext'
 import { formatDate, topologyLabel } from '@/utils/presentation'
 
 export default function ConnectionsView() {
-  const navigate = useNavigate()
   const store = useConnections()
   const { message } = App.useApp()
   const [editing, setEditing] = useState<Connection>()
@@ -46,7 +44,7 @@ export default function ConnectionsView() {
     catch (cause) { message.error(cause instanceof Error ? cause.message : '复制失败') }
   }
 
-  return <PageScaffold title="连接管理" description="保存并测试 Redis 连接，凭据由控制面加密。" actions={<Button type="primary" onClick={() => navigate('/connections/new')}>新建连接</Button>} error={store.error} onRetry={() => void store.load(true)}>
+  return <PageScaffold error={store.error} onRetry={() => void store.load(true)}>
     <PageToolbar ariaLabel="连接管理工具栏" search={{ value: query, placeholder: '搜索连接名称或地址', ariaLabel: '搜索连接', onChange: setQuery }} refreshing={store.loading} refreshLabel="刷新连接" onRefresh={() => void store.load(true)}>
       <Select size="small" value={topologyFilter} aria-label="拓扑筛选" style={{ width: 124 }} options={[{ label: '全部拓扑', value: 'all' }, { label: '单机 / 主从', value: 'standalone' }, { label: 'Sentinel', value: 'sentinel' }, { label: 'Cluster', value: 'cluster' }]} onChange={(value) => setTopologyFilter(value)} />
     </PageToolbar>

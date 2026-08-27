@@ -29,7 +29,7 @@ export default function SystemView() {
     return !keyword ? rows : rows.filter((row) => [row.label, row.description, row.state, row.value].some((value) => value.toLowerCase().includes(keyword)))
   }, [query, rows])
 
-  return <PageScaffold title="系统信息" description="查看当前控制面、存储和 RedisShake 运行配置。" error={error} onRetry={() => void load()}>
+  return <PageScaffold error={error} onRetry={() => void load()}>
     <PageToolbar ariaLabel="系统信息工具栏" search={{ value: query, placeholder: '搜索配置项或路径', ariaLabel: '搜索系统信息', onChange: setQuery }} refreshing={loading} refreshLabel="刷新系统信息" onRefresh={() => void load()} />
     {loading ? <div className="skeleton-list">{[0, 1, 2, 3].map((item) => <div key={item} className="skeleton-row" />)}</div> : info ? <>
       <SummaryBar><span className="ready-summary"><span className="status-beacon" /><strong>Ready</strong></span><span>{info.storage} 正常</span><span className="mono">{info.version} · {info.git_commit}</span></SummaryBar>

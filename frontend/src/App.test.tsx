@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from '@jest/globals'
 
+import { resolvePageContext } from '@/utils/navigation'
 import { initialThemePreference, resolveTheme } from '@/utils/theme'
 
 afterEach(() => localStorage.clear())
@@ -22,5 +23,20 @@ describe('theme preference', () => {
   it('resolves the system preference using the current OS appearance', () => {
     expect(resolveTheme('system', 'dark')).toBe('dark')
     expect(resolveTheme('system', 'light')).toBe('light')
+  })
+})
+
+describe('workspace page context', () => {
+  it.each([
+    ['/tasks', '数据同步', '同步任务'],
+    ['/connections', '数据同步', '连接管理'],
+    ['/system', '系统', '系统信息'],
+  ])('moves %s into the shared top workspace header', (path, parent, title) => {
+    expect(resolvePageContext(path)).toMatchObject({ parent, title })
+  })
+
+  it('keeps nested editor pages under their resource context', () => {
+    expect(resolvePageContext('/tasks/new')).toMatchObject({ parent: '同步任务', title: '创建任务' })
+    expect(resolvePageContext('/connections/new')).toMatchObject({ parent: '连接管理', title: '新建连接' })
   })
 })
