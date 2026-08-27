@@ -66,7 +66,7 @@ export default function App() {
         colorBorder: dark ? '#2e2e32' : '#e2e2e3', borderRadius: 12,
         colorBgBase: dark ? '#1b1b1f' : '#ffffff', colorBgContainer: dark ? '#202127' : '#f6f6f7', colorBgElevated: dark ? '#202127' : '#ffffff', colorFillAlter: dark ? '#32363f' : '#ebebef',
         boxShadow: 'none', boxShadowSecondary: 'none',
-        fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif', fontSize: 14, controlHeight: 40,
+        fontFamily: 'Geist, "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 14, controlHeight: 40,
       },
       components: {
         Button: { borderRadius: 20, primaryShadow: 'none', dangerShadow: 'none', defaultBg: dark ? '#32363f' : '#ebebef', defaultBorderColor: 'transparent' },

@@ -1,14 +1,16 @@
-import { App, Button, Dropdown, Input, Modal, Segmented, Select } from 'antd'
-import { Archive, ArrowRight, ArrowsClockwise, Copy, DotsThree, MagnifyingGlass, Play } from '@phosphor-icons/react'
+import { App, Button, Dropdown, Modal, Segmented, Select } from 'antd'
+import { Archive, ArrowRight, Copy, DotsThree, Play } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { api } from '@/api/client'
 import type { Run, Task, TaskState } from '@/api/types'
-import InlineError from '@/components/InlineError'
-import PageHeader from '@/components/PageHeader'
+import DataTable from '@/components/DataTable'
+import PageScaffold from '@/components/PageScaffold'
+import PageToolbar from '@/components/PageToolbar'
 import StatusPill from '@/components/StatusPill'
+import SummaryBar from '@/components/SummaryBar'
 import { useConnections } from '@/state/ConnectionsContext'
 import { useTasks } from '@/state/TasksContext'
 import { formatDate, formatNumber, modeLabel, runStateMeta, taskStateMeta } from '@/utils/presentation'
@@ -66,20 +68,16 @@ export default function TasksView() {
     catch (cause) { message.error(cause instanceof Error ? cause.message : '复制失败') }
   }
 
-  return <div className="page-wrap">
-    <PageHeader title="同步任务" description="创建、预检并运行 Redis 数据同步任务。">
-      <Button type="primary" onClick={create}>创建任务</Button>
-    </PageHeader>
-    {tasks.error ? <InlineError className="task-error" message={tasks.error} onRetry={() => void load()} /> : null}
-    <div className="list-toolbar">
-      <Input className="list-search" allowClear prefix={<MagnifyingGlass size={16} />} value={query} placeholder="搜索任务名称" aria-label="搜索任务" onChange={(event) => setQuery(event.target.value)} />
-      <div className="toolbar-right"><Segmented size="small" value={stateFilter} options={[{ label: '全部', value: 'all' }, { label: '草稿', value: 'DRAFT' }, { label: '可启动', value: 'READY' }]} onChange={(value) => setStateFilter(value as StateFilter)} /><Select size="small" value={sortOrder} aria-label="任务排序" style={{ width: 112 }} options={[{ label: '最近更新', value: 'updated' }, { label: '任务名称', value: 'name' }, { label: '任务状态', value: 'state' }]} onChange={(value) => setSortOrder(value)} /><Button type="text" aria-label="刷新任务" loading={tasks.loading} icon={<ArrowsClockwise size={16} />} onClick={() => void load()} /></div>
-    </div>
+  return <PageScaffold title="同步任务" description="创建、预检并运行 Redis 数据同步任务。" actions={<Button type="primary" onClick={create}>创建任务</Button>} error={tasks.error} errorClassName="task-error" onRetry={() => void load()}>
+    <PageToolbar ariaLabel="同步任务工具栏" search={{ value: query, placeholder: '搜索任务名称', ariaLabel: '搜索任务', onChange: setQuery }} refreshing={tasks.loading} refreshLabel="刷新任务" onRefresh={() => void load()}>
+      <Segmented size="small" value={stateFilter} options={[{ label: '全部', value: 'all' }, { label: '草稿', value: 'DRAFT' }, { label: '可启动', value: 'READY' }]} onChange={(value) => setStateFilter(value as StateFilter)} />
+      <Select size="small" value={sortOrder} aria-label="任务排序" style={{ width: 112 }} options={[{ label: '最近更新', value: 'updated' }, { label: '任务名称', value: 'name' }, { label: '任务状态', value: 'state' }]} onChange={(value) => setSortOrder(value)} />
+    </PageToolbar>
     {tasks.loading && !tasks.items.length ? <div className="skeleton-list">{[0, 1, 2, 3, 4].map((item) => <div key={item} className="skeleton-row" />)}</div>
       : !tasks.items.length ? <div className="list-empty-row">暂无同步任务</div>
         : <>
-          <div className="compact-summary"><span><strong>{formatNumber(tasks.items.length)}</strong>任务</span><span><strong>{formatNumber(runningCount)}</strong>运行中</span><span><strong>{formatNumber(readyCount)}</strong>可启动</span><span><strong>{formatNumber(totalWritten)}</strong>已写入</span></div>
-          {filtered.length ? <div className="data-surface task-table"><div className="data-table-header task-table-header"><span>任务名称</span><span>同步链路</span><span>状态</span><span>最近更新</span><span>操作</span></div>{filtered.map((task, index) => {
+          <SummaryBar><span><strong>{formatNumber(tasks.items.length)}</strong>任务</span><span><strong>{formatNumber(runningCount)}</strong>运行中</span><span><strong>{formatNumber(readyCount)}</strong>可启动</span><span><strong>{formatNumber(totalWritten)}</strong>已写入</span></SummaryBar>
+          {filtered.length ? <DataTable className="task-table" ariaLabel="同步任务列表" headers={['任务名称', '同步链路', '状态', '最近更新', '操作']}>{filtered.map((task, index) => {
           const latest = latestRuns[task.id]
           return <div key={task.id} className="data-row task-row" style={{ '--row-index': index } as CSSProperties} onDoubleClick={() => navigate(`/tasks/${task.id}`)}>
             <div className="task-identity"><strong>{task.spec.name}</strong><small>{modeLabel[task.spec.mode]} · revision {task.config_revision}</small></div>
@@ -96,7 +94,7 @@ export default function TasksView() {
               ] }}><Button type="text" size="small" aria-label={`${task.spec.name} 更多操作`} icon={<DotsThree size={18} />} /></Dropdown>
             </div>
           </div>
-        })}</div> : <div className="list-empty-row">没有匹配的任务，请调整搜索或筛选条件</div>}
+        })}</DataTable> : <div className="list-empty-row">没有匹配的任务，请调整搜索或筛选条件</div>}
         </>}
-  </div>
+  </PageScaffold>
 }
