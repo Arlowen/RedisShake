@@ -6,11 +6,8 @@ import { expect, test } from '@playwright/test'
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const composeArgs = ['compose', '-f', 'deploy/compose.dev.yaml']
 
-function composeExec(service: string, ...command: string[]) {
-  return execFileSync('docker', [...composeArgs, 'exec', '-T', service, ...command], {
-    cwd: repositoryRoot,
-    encoding: 'utf8',
-  }).trim()
+function composeExec(service, ...command) {
+  return execFileSync('docker', [...composeArgs, 'exec', '-T', service, ...command], { cwd: repositoryRoot, encoding: 'utf8' }).trim()
 }
 
 test('creates connections and runs a real RedisShake scan from the UI', async ({ page }) => {
@@ -42,10 +39,8 @@ test('creates connections and runs a real RedisShake scan from the UI', async ({
   await expect(page.getByRole('heading', { name: '创建同步任务' })).toBeVisible()
   await page.getByLabel('任务名称', { exact: true }).fill(taskName)
   await page.getByText('扫描迁移', { exact: true }).click()
-  await page.getByRole('combobox', { name: /源端连接/ }).click()
-  await page.getByText(sourceName, { exact: true }).last().click()
-  await page.getByRole('combobox', { name: /目标连接/ }).click()
-  await page.getByText(targetName, { exact: true }).last().click()
+  await page.getByRole('combobox', { name: /源端连接/ }).selectOption({ label: sourceName })
+  await page.getByRole('combobox', { name: /目标连接/ }).selectOption({ label: targetName })
   await page.getByText('排除', { exact: true }).click()
   await page.getByLabel('Key 前缀', { exact: true }).fill('e2e:skip:')
   await page.getByRole('button', { name: '执行预检查' }).click()
@@ -61,15 +56,13 @@ test('creates connections and runs a real RedisShake scan from the UI', async ({
   await expect(page.locator('.log-view')).toContainText('all done')
 })
 
-async function createConnection(page: import('@playwright/test').Page, name: string, address: string, targetCheck: boolean) {
+async function createConnection(page, name, address, targetCheck) {
   await page.getByRole('button', { name: '新建连接' }).click()
   await expect(page).toHaveURL(/\/connections\/new$/)
   await expect(page.getByRole('heading', { name: '新建 Redis 连接' })).toBeVisible()
   await page.getByLabel('连接名称', { exact: true }).fill(name)
   await page.getByLabel('Redis 地址', { exact: true }).fill(address)
-  if (targetCheck) {
-    await page.getByText('目标写检查', { exact: true }).click()
-  }
+  if (targetCheck) await page.getByText('目标写检查', { exact: true }).click()
   await page.getByRole('button', { name: '测试连接' }).click()
   await expect(page.getByText(targetCheck ? '目标 Redis 临时测试 Key 已清理' : 'Redis 拓扑与连接配置一致', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '保存连接' }).click()

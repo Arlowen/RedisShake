@@ -2,7 +2,7 @@
 
 Web 控制台通过页面管理 Redis 连接、任务配置、预检查、RedisShake worker、状态和日志。数据同步仍由原始 RedisShake 内核执行；控制面不会保存 Redis Key/Value 副本。
 
-前端采用 React + TypeScript + Webpack。生产构建通过 Go `embed.FS` 内嵌进 `redis-shake-server`，页面和 API 使用同一个后端端口，不需要单独部署 Node.js、前端服务器或静态资源目录。
+前端采用浏览器原生 HTML、CSS 和 ES Modules JavaScript。生产构建通过 Go `embed.FS` 内嵌进 `redis-shake-server`，页面和 API 使用同一个后端端口，不需要单独部署 Node.js、前端服务器或静态资源目录。
 
 ## 本地单端口构建
 
@@ -52,7 +52,7 @@ openssl rand -base64 32
 docker compose up -d --build --wait
 ```
 
-镜像运行层只包含 RedisShake worker 和已经内嵌 React 页面的控制面二进制，不包含 Node.js 或独立 `/app/web` 目录。
+镜像运行层只包含 RedisShake worker 和已经内嵌原生 Web 页面的控制面二进制，不包含 Node.js 或独立 `/app/web` 目录。
 
 默认只发布到 `127.0.0.1:8080`。如需远程访问，请在前面部署带 TLS、身份认证和访问控制的反向代理，不要直接发布 RedisShake 内部状态端口。
 

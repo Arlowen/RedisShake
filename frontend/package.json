@@ -1,46 +1,15 @@
 {
   "name": "redisshake-web-console",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": "^20.19.0 || >=22.12.0"
-  },
+  "engines": { "node": ">=20" },
   "scripts": {
-    "dev": "webpack serve --mode development",
-    "build": "npm run typecheck && webpack --mode production",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit",
-    "test": "jest --runInBand",
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run typecheck && node scripts/build.mjs",
+    "typecheck": "node --check src/lib.js && node --check src/components.js && node --check src/pages.js && node --check src/app.js && node --check scripts/build.mjs && node --check scripts/dev.mjs",
+    "test": "node --test test/*.test.js",
     "test:e2e": "playwright test"
   },
-  "dependencies": {
-    "@phosphor-icons/react": "2.1.10",
-    "antd": "6.6.1",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "react-router-dom": "7.18.2"
-  },
-  "devDependencies": {
-    "@playwright/test": "1.62.1",
-    "@babel/core": "7.29.7",
-    "@babel/preset-env": "7.29.7",
-    "@babel/preset-react": "7.29.7",
-    "@babel/preset-typescript": "7.29.7",
-    "@testing-library/jest-dom": "7.0.1",
-    "@testing-library/react": "16.3.2",
-    "@types/node": "26.2.0",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.5",
-    "babel-jest": "30.4.1",
-    "babel-loader": "10.1.1",
-    "css-loader": "7.1.4",
-    "html-webpack-plugin": "5.6.8",
-    "jest": "30.4.2",
-    "jest-environment-jsdom": "30.4.1",
-    "style-loader": "4.0.0",
-    "typescript": "6.0.3",
-    "webpack": "5.109.2",
-    "webpack-cli": "7.2.2",
-    "webpack-dev-server": "6.0.0"
-  }
+  "devDependencies": { "@playwright/test": "1.62.1" }
 }

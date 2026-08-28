@@ -1,0 +1,112 @@
+import { checkStateMeta, escapeHtml } from './lib.js'
+
+export function icon(name, size = 18) {
+  const paths = {
+    search: '<circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path>',
+    refresh: '<path d="M20 6v5h-5"></path><path d="M4 18v-5h5"></path><path d="M6.1 9a7 7 0 0 1 11.2-2.6L20 11M4 13l2.7 4.6A7 7 0 0 0 17.9 15"></path>',
+    plus: '<path d="M12 5v14M5 12h14"></path>',
+    arrow: '<path d="M5 12h14M13 6l6 6-6 6"></path>',
+    back: '<path d="m15 18-6-6 6-6"></path>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"></path>',
+    close: '<path d="m6 6 12 12M18 6 6 18"></path>',
+    sun: '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>',
+    check: '<path d="m5 12 4 4L19 6"></path>',
+    warning: '<path d="M12 3 2.8 20h18.4L12 3Z"></path><path d="M12 9v4M12 17h.01"></path>',
+    play: '<path d="m8 5 11 7-11 7V5Z"></path>',
+    stop: '<rect x="6" y="6" width="12" height="12" rx="1"></rect>',
+    copy: '<rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path>',
+    trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"></path>',
+  }
+  return `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.arrow}</svg>`
+}
+
+export function button(label, { id = '', tone = 'secondary', iconName = '', type = 'button', disabled = false, extra = '' } = {}) {
+  return `<button ${id ? `id="${id}"` : ''} type="${type}" class="button button-${tone}" ${disabled ? 'disabled' : ''} ${extra}>${iconName ? icon(iconName, 16) : ''}<span>${escapeHtml(label)}</span></button>`
+}
+
+export function statusPill(state, meta, pulse = false) {
+  const [label, tone] = meta[state] || [state || '—', 'neutral']
+  return `<span class="status-pill tone-${tone}${pulse ? ' pulse' : ''}"><i></i>${escapeHtml(label)}</span>`
+}
+
+export function listToolbar({ searchLabel, searchPlaceholder, filters = '', action = '', refreshing = false }) {
+  return `<section class="list-toolbar" aria-label="管理工具栏">
+    <label class="search-control">${icon('search', 17)}<span class="sr-only">${escapeHtml(searchLabel)}</span><input id="list-search" aria-label="${escapeHtml(searchLabel)}" placeholder="${escapeHtml(searchPlaceholder)}"></label>
+    <div class="toolbar-actions">${filters}${button('刷新', { id: 'refresh-list', tone: 'ghost', iconName: 'refresh', extra: `aria-label="刷新${refreshing ? '中' : ''}" title="刷新"` })}${action}</div>
+  </section>`
+}
+
+export function listPage({ toolbar, summary = '', content = '', error = '' }) {
+  return `<div class="list-page">${error ? inlineError(error) : ''}${toolbar}${summary}${content}</div>`
+}
+
+export function table(headers, rows, className = '') {
+  return `<section class="data-table ${className}"><div class="table-head">${headers.map((header) => `<span>${escapeHtml(header)}</span>`).join('')}</div><div class="table-body">${rows}</div></section>`
+}
+
+export function emptyState(title, description = '') {
+  return `<div class="empty-row"><div class="empty-marker"></div><div><strong>${escapeHtml(title)}</strong>${description ? `<span>${escapeHtml(description)}</span>` : ''}</div></div>`
+}
+
+export function skeleton(rows = 4) { return `<div class="skeleton-list">${Array.from({ length: rows }, () => '<div class="skeleton-row"></div>').join('')}</div>` }
+
+export function summary(items) { return `<div class="summary-strip">${items.map(([value, label]) => `<span><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</span>`).join('')}</div>` }
+
+export function inlineError(message) { return `<div class="inline-error" role="alert">${icon('warning')}<span>${escapeHtml(message)}</span>${button('重试', { id: 'retry-page', tone: 'ghost' })}</div>` }
+
+export function pageHeader(title, description, actions = '') {
+  return `<header class="page-header"><div><h2>${escapeHtml(title)}</h2><p>${escapeHtml(description)}</p></div><div class="page-actions">${actions}</div></header>`
+}
+
+export function field(label, control, help = '') {
+  return `<label class="field"><span>${escapeHtml(label)}</span>${control}${help ? `<small>${escapeHtml(help)}</small>` : ''}</label>`
+}
+
+export function input(id, label, value = '', options = {}) {
+  const type = options.type || 'text'
+  return `<input id="${id}" name="${id}" type="${type}" value="${escapeHtml(value)}" aria-label="${escapeHtml(label)}" placeholder="${escapeHtml(options.placeholder || '')}" ${options.min !== undefined ? `min="${options.min}"` : ''}>`
+}
+
+export function textarea(id, label, value = '', placeholder = '', rows = 3) {
+  return `<textarea id="${id}" name="${id}" rows="${rows}" aria-label="${escapeHtml(label)}" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value)}</textarea>`
+}
+
+export function select(id, label, value, options) {
+  return `<select id="${id}" name="${id}" aria-label="${escapeHtml(label)}">${options.map(([optionValue, optionLabel]) => `<option value="${escapeHtml(optionValue)}" ${String(optionValue) === String(value || '') ? 'selected' : ''}>${escapeHtml(optionLabel)}</option>`).join('')}</select>`
+}
+
+export function segmented(name, value, options) {
+  return `<div class="segmented" role="group">${options.map(([optionValue, label]) => `<button type="button" data-segment="${escapeHtml(name)}" data-value="${escapeHtml(optionValue)}" class="${optionValue === value ? 'active' : ''}">${escapeHtml(label)}</button>`).join('')}</div>`
+}
+
+export function checkPanel(checks = [], title = '检查结果') {
+  return `<section class="check-panel"><header><h3>${escapeHtml(title)}</h3><span>${checks.length} 项</span></header><div>${checks.map((check) => {
+    const [label, tone] = checkStateMeta[check.state] || [check.state, 'neutral']
+    return `<div class="check-item tone-text-${tone}">${icon(check.state === 'PASS' ? 'check' : 'warning', 17)}<span>${escapeHtml(check.message)}</span><small>${escapeHtml(label)}</small></div>`
+  }).join('')}</div></section>`
+}
+
+export function toast(message, tone = 'success') {
+  const root = document.querySelector('#toast-root')
+  if (!root) return
+  const item = document.createElement('div')
+  item.className = `toast toast-${tone}`
+  item.textContent = message
+  root.append(item)
+  setTimeout(() => item.remove(), 3200)
+}
+
+export function bindSegments(root, callback) {
+  root.querySelectorAll('[data-segment]').forEach((control) => control.addEventListener('click', () => callback(control.dataset.segment, control.dataset.value)))
+}
+
+export function confirmDialog(title, message, actionLabel = '确认') {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div')
+    modal.className = 'modal-backdrop'
+    modal.innerHTML = `<div class="modal"><h3>${escapeHtml(title)}</h3><p>${escapeHtml(message)}</p><div>${button('取消', { id: 'modal-cancel' })}${button(actionLabel, { id: 'modal-confirm', tone: 'primary' })}</div></div>`
+    document.body.append(modal)
+    modal.querySelector('#modal-cancel').onclick = () => { modal.remove(); resolve(false) }
+    modal.querySelector('#modal-confirm').onclick = () => { modal.remove(); resolve(true) }
+  })
+}

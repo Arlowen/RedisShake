@@ -1,6 +1,6 @@
 # RedisShake Web Console
 
-React 19 + TypeScript control-plane UI for creating, prechecking, running, and monitoring RedisShake tasks. Webpack provides the development server and production build; Vite is not used.
+Browser-native HTML, CSS, and ES Modules JavaScript control-plane UI for creating, prechecking, running, and monitoring RedisShake tasks. It has no framework or runtime UI dependency.
 
 The UI hierarchy, tokens, responsive rules, and acceptance criteria are defined in [`../design.md`](../design.md).
 
@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-The Webpack development server listens on `127.0.0.1:5173` and proxies `/api`, `/healthz`, and `/readyz` to `http://127.0.0.1:8080`.
+The small Node development server listens on `127.0.0.1:5173`, serves the native modules directly, and proxies `/api`, `/healthz`, and `/readyz` to `http://127.0.0.1:8080`.
 
 ## Embedded single-port build
 
@@ -23,7 +23,7 @@ sh build_web.sh
 REDISSHAKE_MASTER_KEY="$(openssl rand -base64 32)" ./bin/redis-shake-server
 ```
 
-`build_web.sh` compiles React, copies ignored build output into the Go resource package, and embeds it in `redis-shake-server`. The Web console and API are then both served from `http://127.0.0.1:8080`; no frontend files are required beside the binary.
+`build_web.sh` validates and copies the static HTML/CSS/JavaScript modules into the Go resource package, then embeds them in `redis-shake-server`. The Web console and API are both served from `http://127.0.0.1:8080`; no frontend files are required beside the binary.
 
 ## Verification
 

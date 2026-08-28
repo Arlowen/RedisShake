@@ -9,4 +9,4 @@ FRONTEND_DIR="$REPOSITORY_DIR/frontend"
 
 npm --prefix "$FRONTEND_DIR" run build
 sh "$SCRIPT_DIR/sync_web_assets.sh"
-echo "React assets prepared for Go embed.FS"
+echo "native Web assets prepared for Go embed.FS"

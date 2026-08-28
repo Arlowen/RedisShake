@@ -2,7 +2,7 @@
 
 The Web console manages Redis connections, task configuration, prechecks, RedisShake worker processes, status, and logs. RedisShake remains the data-movement engine; the control plane does not store copies of Redis keys and values.
 
-The console uses React, TypeScript, and Webpack. Production assets are compiled into `redis-shake-server` with Go `embed.FS`, so the UI and API share one backend port without a Node.js runtime or external static directory.
+The console uses browser-native HTML, CSS, and ES Modules JavaScript. Production assets are embedded into `redis-shake-server` with Go `embed.FS`, so the UI and API share one backend port without a Node.js runtime or external static directory.
 
 ## Local single-port build
 
