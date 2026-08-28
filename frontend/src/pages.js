@@ -89,7 +89,6 @@ export async function mountTasks(root, navigate) {
 export async function mountConnections(root, navigate) {
   let items = []
   let query = ''
-  let topology = 'all'
   let page = 1
   root.innerHTML = listPage({ toolbar: listToolbar({ searchLabel: '搜索连接', searchPlaceholder: '搜索连接名称、地址或拓扑' }), content: skeleton(4) })
   const load = async () => {
@@ -100,11 +99,10 @@ export async function mountConnections(root, navigate) {
     const keyword = query.trim().toLowerCase()
     const filtered = items.filter((item) => {
       const searchable = [item.name, item.address || item.sentinel?.address, topologyLabel[item.topology]].filter(Boolean).join(' ').toLowerCase()
-      return (!keyword || searchable.includes(keyword)) && (topology === 'all' || item.topology === topology)
+      return !keyword || searchable.includes(keyword)
     })
     page = Math.min(page, Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE)))
     const visibleConnections = filtered.slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
-    const filters = select('topology-filter', '拓扑筛选', topology, [['all', '全部拓扑'], ['standalone', '单机 / 主从'], ['sentinel', 'Sentinel'], ['cluster', 'Cluster']])
     const action = button('新建连接', { id: 'create-connection', tone: 'primary', iconName: 'plus' })
     const rows = visibleConnections.map((connection) => `<article class="table-row connection-row">
       <div class="identity"><strong>${escapeHtml(connection.name)}</strong><small class="mono">${escapeHtml(connection.address || connection.sentinel.address || '—')}</small></div>
@@ -114,14 +112,13 @@ export async function mountConnections(root, navigate) {
       <div class="row-actions">${button('测试', { extra: `data-connection-action="test" data-id="${connection.id}"` })}${button('编辑', { tone: 'ghost', extra: `data-connection-action="edit" data-id="${connection.id}"` })}${button('删除', { tone: 'ghost', extra: `data-connection-action="delete" data-id="${connection.id}" aria-label="删除 ${escapeHtml(connection.name)}"` })}</div>
     </article>`).join('')
     root.innerHTML = listPage({
-      toolbar: listToolbar({ searchLabel: '搜索连接', searchPlaceholder: '搜索连接名称、地址或拓扑', filters, action }),
+      toolbar: listToolbar({ searchLabel: '搜索连接', searchPlaceholder: '搜索连接名称、地址或拓扑', action }),
       summary: items.length ? summary([[String(items.length), '连接'], ['AES-GCM', '凭据保护']]) : '',
-      content: items.length ? (filtered.length ? table(['连接名称 / 地址', '拓扑', '凭据', '最近检查', '操作'], rows, 'connection-table', 'Redis 连接列表') : emptyState('没有匹配的连接', '请调整搜索或拓扑筛选条件')) : emptyState('暂无 Redis 连接', '先建立源端和目标端连接，再创建同步任务。'),
+      content: items.length ? (filtered.length ? table(['连接名称 / 地址', '拓扑', '凭据', '最近检查', '操作'], rows, 'connection-table', 'Redis 连接列表') : emptyState('没有匹配的连接', '请调整搜索条件')) : emptyState('暂无 Redis 连接', '先建立源端和目标端连接，再创建同步任务。'),
       pagination: pagination(filtered.length, page, LIST_PAGE_SIZE),
     })
     bindSearch(root, query, (value) => { query = value; page = 1; render() })
     bindPagination(root, (value) => { page = value; render() })
-    root.querySelector('#topology-filter').addEventListener('change', (event) => { topology = event.target.value; page = 1; render() })
     root.querySelector('#refresh-list').addEventListener('click', load)
     root.querySelector('#create-connection').addEventListener('click', () => navigate('/connections/new'))
     root.querySelectorAll('[data-connection-action]').forEach((control) => control.addEventListener('click', async () => {
