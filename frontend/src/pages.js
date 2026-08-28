@@ -133,7 +133,7 @@ export async function mountConnections(root, navigate) {
 }
 
 export async function mountSystem(root) {
-  root.innerHTML = listPage({ toolbar: listToolbar({}), content: skeleton(4) })
+  root.innerHTML = listPage({ toolbar: '', content: skeleton(4) })
   let page = 1
   const load = async () => {
     try {
@@ -150,13 +150,12 @@ export async function mountSystem(root) {
         const rowHtml = visibleRows.map((row) => `<article class="table-row system-row"><div class="identity"><strong>${escapeHtml(row[0])}</strong><small>${escapeHtml(row[1])}</small></div><strong>${escapeHtml(row[2])}</strong><code>${escapeHtml(row[3])}</code></article>`).join('')
         const deploymentBoundary = `<aside class="info-banner"><strong>部署边界</strong><p>控制面默认监听回环地址。对外提供页面时，请通过带 TLS 和访问控制的反向代理暴露。</p></aside>`
         root.innerHTML = listPage({
-          toolbar: listToolbar({}),
+          toolbar: '',
           summary: summary([['Ready', '控制面'], [info.storage, '存储'], [`${info.version} · ${info.git_commit}`, '版本']]),
           content: `${table(['配置项', '状态', '配置值'], rowHtml, 'system-table', '系统信息列表')}${deploymentBoundary}`,
           pagination: pagination(rows.length, page, LIST_PAGE_SIZE),
         })
         bindPagination(root, (value) => { page = value; render() })
-        root.querySelector('#refresh-list').addEventListener('click', load)
       }
       render()
     } catch (error) { root.innerHTML = inlineError(error.message); root.querySelector('#retry-page')?.addEventListener('click', load) }
