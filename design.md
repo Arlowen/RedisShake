@@ -2,7 +2,7 @@
 
 ## 1. 背景与问题
 
-控制台已完成极简化并覆盖连接管理、任务创建、预检查、运行监控和日志排查，但仍使用自定义绿色品牌、Geist 字体、56px 导航和边框型列表，与 RedisShake 官网形成两套视觉体系。用户从官网进入控制台时不应感知为另一个产品。
+控制台已完成极简化并覆盖连接管理、任务创建、预检查、运行监控和日志排查，但仍使用自定义绿色品牌、过于细碎的字号、56px 导航和边框型列表，与 RedisShake 官网形成两套视觉体系。用户从官网进入控制台时不应感知为另一个产品。
 
 本设计以 [RedisShake 官网](https://tair-opensource.github.io/RedisShake/) 2026-08-26 的实时 VitePress 页面和 CSS 为品牌基线，在不恢复复杂层级的前提下统一颜色、字体、顶栏、按钮、表面、圆角、移动导航和明暗模式。极简不等于删除能力：连接测试、任务预检查、启停、日志筛选、危险操作提醒、Loading、Empty、Error 和响应式状态必须继续保留。
 
@@ -74,7 +74,7 @@
 | 页面最大宽度 | `1152px` | 官网首页 Feature 内容宽度 |
 | 基础间距 | `8px` | 所有间距按 8 的倍数组织 |
 
-字体栈与官网一致：`Inter, ui-sans-serif, system-ui, sans-serif`；数字、ID、路径和日志使用系统等宽字体。页面标题 28–32px，区块标题 16px，正文 14px，元信息 12px。控制台不复刻官网 56px Hero，而采用官网文档内容层级。
+字体采用 ChatGPT、Claude、DeepSeek 同类产品常见的原生 UI 策略：`ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif`；数字、ID、路径和日志使用系统等宽字体。全局只保留 12px 元信息、13px 控件、14px 正文、16–18px 区块标题和 26px 页面标题五档字号，不再使用 8–11px 正文。控制台不复刻官网 56px Hero，而采用官网文档内容层级。
 
 ### 4.2 顶栏与 Sidebar
 
