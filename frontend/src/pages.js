@@ -148,11 +148,9 @@ export async function mountSystem(root) {
         page = Math.min(page, Math.max(1, Math.ceil(rows.length / LIST_PAGE_SIZE)))
         const visibleRows = rows.slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
         const rowHtml = visibleRows.map((row) => `<article class="table-row system-row"><div class="identity"><strong>${escapeHtml(row[0])}</strong><small>${escapeHtml(row[1])}</small></div><strong>${escapeHtml(row[2])}</strong><code>${escapeHtml(row[3])}</code></article>`).join('')
-        const deploymentBoundary = `<aside class="info-banner"><strong>部署边界</strong><p>控制面默认监听回环地址。对外提供页面时，请通过带 TLS 和访问控制的反向代理暴露。</p></aside>`
         root.innerHTML = listPage({
           toolbar: '',
-          summary: summary([['Ready', '控制面'], [info.storage, '存储'], [`${info.version} · ${info.git_commit}`, '版本']]),
-          content: `${table(['配置项', '状态', '配置值'], rowHtml, 'system-table', '系统信息列表')}${deploymentBoundary}`,
+          content: table(['配置项', '状态', '配置值'], rowHtml, 'system-table', '系统信息列表'),
           pagination: pagination(rows.length, page, LIST_PAGE_SIZE),
         })
         bindPagination(root, (value) => { page = value; render() })
