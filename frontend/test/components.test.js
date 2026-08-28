@@ -1,20 +1,22 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { button, emptyState, listPage, listToolbar, select, table } from '../src/components.js'
+import { button, emptyState, listPage, listToolbar, pagination, select, table } from '../src/components.js'
 import { defaultConnectionInput, defaultTaskSpec, escapeHtml } from '../src/lib.js'
 
 test('shared list shell keeps search, actions and table aligned in one component system', () => {
-  const toolbar = listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称、连接或状态', resultLabel: '共 3 条', action: button('创建任务', { tone: 'primary' }) })
-  const page = listPage({ toolbar, content: table(['名称'], '<article class="table-row">任务</article>', 'task-table', '同步任务列表') })
+  const toolbar = listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称、连接或状态', filters: '<div data-test-filter>全部</div>', action: button('创建任务', { tone: 'primary' }) })
+  const page = listPage({ toolbar, content: table(['名称'], '<article class="table-row">任务</article>', 'task-table', '同步任务列表'), pagination: pagination(3) })
   assert.match(page, /class="list-page"/)
   assert.match(page, /class="list-results"/)
   assert.match(page, /aria-label="搜索任务"/)
   assert.match(page, /aria-keyshortcuts="\/"/)
   assert.match(page, /data-search-clear/)
-  assert.match(page, /共 3 条/)
+  assert.ok(page.indexOf('data-test-filter') < page.indexOf('data-search'))
   assert.match(page, /class="data-table/)
   assert.match(page, /role="table" aria-label="同步任务列表"/)
+  assert.match(page, /class="pagination"/)
+  assert.match(page, /共 3 条/)
   assert.match(page, /创建任务/)
 })
 
@@ -40,5 +42,13 @@ test('shared select renders a custom accessible listbox and stable form value', 
 test('shared empty state groups its content for consistent centering', () => {
   const empty = emptyState('暂无同步任务', '创建任务后，可在这里查看运行状态。')
   assert.match(empty, /class="empty-row"><div class="empty-content">/)
+  assert.doesNotMatch(empty, /empty-marker/)
   assert.match(empty, /暂无同步任务/)
+})
+
+test('shared pagination owns result counts and disabled boundaries', () => {
+  const control = pagination(0)
+  assert.match(control, /共 0 条/)
+  assert.match(control, /aria-label="上一页" disabled/)
+  assert.match(control, /aria-label="下一页" disabled/)
 })

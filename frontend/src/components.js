@@ -30,23 +30,23 @@ export function statusPill(state, meta, pulse = false) {
   return `<span class="status-pill tone-${tone}${pulse ? ' pulse' : ''}"><i></i>${escapeHtml(label)}</span>`
 }
 
-export function listToolbar({ searchLabel, searchPlaceholder, filters = '', action = '', resultLabel = '', refreshing = false }) {
+export function listToolbar({ searchLabel, searchPlaceholder, filters = '', sort = '', action = '', refreshing = false }) {
   return `<section class="list-toolbar" aria-label="管理工具栏">
-    <div class="toolbar-primary">${searchControl(searchLabel, searchPlaceholder, { resultLabel })}</div>
-    <div class="toolbar-actions">${filters}${button('刷新', { id: 'refresh-list', tone: 'ghost', iconName: 'refresh', extra: `aria-label="刷新${refreshing ? '中' : ''}" title="刷新"` })}${action}</div>
+    <div class="toolbar-primary">${filters}${searchControl(searchLabel, searchPlaceholder)}</div>
+    <div class="toolbar-actions">${sort}${button('刷新', { id: 'refresh-list', tone: 'ghost', iconName: 'refresh', extra: `aria-label="刷新${refreshing ? '中' : ''}" title="刷新"` })}${action}</div>
   </section>`
 }
 
-export function searchControl(label, placeholder, { resultLabel = '' } = {}) {
+export function searchControl(label, placeholder) {
   return `<div class="search-control" role="search" data-search>
     <label for="list-search">${icon('search', 17)}<span class="sr-only">${escapeHtml(label)}</span><input id="list-search" data-search-input aria-label="${escapeHtml(label)}" aria-keyshortcuts="/" autocomplete="off" spellcheck="false" placeholder="${escapeHtml(placeholder)}"></label>
     <button type="button" class="search-clear" data-search-clear aria-label="清空搜索内容" title="清空">${icon('close', 14)}</button>
     <kbd class="search-shortcut" aria-hidden="true">/</kbd>
-  </div>${resultLabel ? `<span class="toolbar-result" aria-live="polite">${escapeHtml(resultLabel)}</span>` : ''}`
+  </div>`
 }
 
-export function listPage({ toolbar, summary = '', content = '', error = '' }) {
-  return `<div class="list-page">${error ? inlineError(error) : ''}${toolbar}<section class="list-results">${summary}<div class="list-content">${content}</div></section></div>`
+export function listPage({ toolbar, summary = '', content = '', pagination: paginationHtml = '', error = '' }) {
+  return `<div class="list-page">${error ? inlineError(error) : ''}${toolbar}<section class="list-results">${summary}<div class="list-content">${content}</div>${paginationHtml}</section></div>`
 }
 
 export function table(headers, rows, className = '', label = '数据列表') {
@@ -54,7 +54,26 @@ export function table(headers, rows, className = '', label = '数据列表') {
 }
 
 export function emptyState(title, description = '') {
-  return `<div class="empty-row"><div class="empty-content"><div class="empty-marker"></div><div><strong>${escapeHtml(title)}</strong>${description ? `<span>${escapeHtml(description)}</span>` : ''}</div></div></div>`
+  return `<div class="empty-row"><div class="empty-content"><strong>${escapeHtml(title)}</strong>${description ? `<span>${escapeHtml(description)}</span>` : ''}</div></div>`
+}
+
+export function pagination(total, page = 1, pageSize = 10) {
+  const pages = Math.max(1, Math.ceil(total / pageSize))
+  const current = Math.min(Math.max(page, 1), pages)
+  const start = total ? (current - 1) * pageSize + 1 : 0
+  const end = Math.min(total, current * pageSize)
+  return `<nav class="pagination" data-pagination aria-label="列表分页">
+    <span class="pagination-summary">共 ${total} 条${total ? ` · ${start}–${end}` : ''}</span>
+    <div class="pagination-controls">
+      <button type="button" data-page="${current - 1}" aria-label="上一页" ${current === 1 ? 'disabled' : ''}>${icon('back', 14)}</button>
+      <span><strong>${current}</strong> / ${pages}</span>
+      <button type="button" data-page="${current + 1}" aria-label="下一页" ${current === pages ? 'disabled' : ''}>${icon('arrow', 14)}</button>
+    </div>
+  </nav>`
+}
+
+export function bindPagination(root, callback) {
+  root.querySelectorAll('[data-pagination] [data-page]').forEach((control) => control.addEventListener('click', () => callback(Number(control.dataset.page))))
 }
 
 export function skeleton(rows = 4) { return `<div class="skeleton-list">${Array.from({ length: rows }, () => '<div class="skeleton-row"></div>').join('')}</div>` }

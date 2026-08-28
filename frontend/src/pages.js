@@ -3,9 +3,11 @@ import {
   numbers, runStateMeta, stripAnsi, taskStateMeta, topologyLabel,
 } from './lib.js'
 import {
-  bindSearch, bindSegments, button, checkPanel, confirmDialog, emptyState, field, icon, inlineError, input, listPage, listToolbar,
-  pageHeader, segmented, select, skeleton, statusPill, summary, table, textarea, toast,
+  bindPagination, bindSearch, bindSegments, button, checkPanel, confirmDialog, emptyState, field, icon, inlineError, input, listPage, listToolbar,
+  pageHeader, pagination, segmented, select, skeleton, statusPill, summary, table, textarea, toast,
 } from './components.js'
+
+const LIST_PAGE_SIZE = 10
 
 function setBusy(control, busy, label = '处理中') {
   if (!control) return
@@ -21,6 +23,7 @@ export async function mountTasks(root, navigate) {
   let query = ''
   let state = 'all'
   let sort = 'updated'
+  let page = 1
   root.innerHTML = listPage({ toolbar: listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称、连接或状态' }), content: skeleton(5) })
 
   const load = async () => {
@@ -40,9 +43,12 @@ export async function mountTasks(root, navigate) {
       return (!keyword || searchable.includes(keyword)) && (state === 'all' || task.state === state)
     })
       .sort((a, b) => sort === 'name' ? a.spec.name.localeCompare(b.spec.name) : sort === 'state' ? a.state.localeCompare(b.state) : b.updated_at.localeCompare(a.updated_at))
-    const filters = `${segmented('task-state', state, [['all', '全部'], ['DRAFT', '草稿'], ['READY', '可启动']])}${select('task-sort', '任务排序', sort, [['updated', '最近更新'], ['name', '任务名称'], ['state', '任务状态']])}`
+    page = Math.min(page, Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE)))
+    const visibleTasks = filtered.slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
+    const filters = segmented('task-state', state, [['all', '全部'], ['DRAFT', '草稿'], ['READY', '可启动']])
+    const sortControl = select('task-sort', '任务排序', sort, [['updated', '最近更新'], ['name', '任务名称'], ['state', '任务状态']])
     const action = button('创建任务', { id: 'create-task', tone: 'primary', iconName: 'plus' })
-    const rows = filtered.map((task) => {
+    const rows = visibleTasks.map((task) => {
       const run = latestRuns[task.id]
       const route = `${escapeHtml(names[task.spec.source_connection_id] || '未选择')} ${icon('arrow', 14)} ${escapeHtml(names[task.spec.target_connection_id] || '未选择')}`
       return `<article class="table-row task-row" data-task-id="${task.id}">
@@ -56,13 +62,15 @@ export async function mountTasks(root, navigate) {
     const running = Object.values(latestRuns).filter(isActive).length
     const ready = tasks.filter((task) => task.state === 'READY').length
     root.innerHTML = listPage({
-      toolbar: listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称、连接或状态', resultLabel: query || state !== 'all' ? `${filtered.length} 条结果` : `共 ${tasks.length} 条`, filters, action }),
+      toolbar: listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称、连接或状态', filters, sort: sortControl, action }),
       summary: tasks.length ? summary([[String(tasks.length), '任务'], [String(running), '运行中'], [String(ready), '可启动']]) : '',
       content: tasks.length ? (filtered.length ? table(['任务名称', '同步链路', '状态', '最近更新', '操作'], rows, 'task-table', '同步任务列表') : emptyState('没有匹配的任务', '请调整搜索或筛选条件')) : emptyState('暂无同步任务', '创建任务后，可在这里查看运行状态与迁移进度。'),
+      pagination: pagination(filtered.length, page, LIST_PAGE_SIZE),
     })
-    bindSearch(root, query, (value) => { query = value; render() })
-    root.querySelector('#task-sort').addEventListener('change', (event) => { sort = event.target.value; render() })
-    bindSegments(root, (_name, value) => { state = value; render() })
+    bindSearch(root, query, (value) => { query = value; page = 1; render() })
+    bindPagination(root, (value) => { page = value; render() })
+    root.querySelector('#task-sort').addEventListener('change', (event) => { sort = event.target.value; page = 1; render() })
+    bindSegments(root, (_name, value) => { state = value; page = 1; render() })
     root.querySelector('#refresh-list').addEventListener('click', load)
     root.querySelector('#create-task').addEventListener('click', () => navigate('/tasks/new'))
     root.querySelectorAll('[data-action]').forEach((control) => control.addEventListener('click', async () => {
@@ -82,6 +90,7 @@ export async function mountConnections(root, navigate) {
   let items = []
   let query = ''
   let topology = 'all'
+  let page = 1
   root.innerHTML = listPage({ toolbar: listToolbar({ searchLabel: '搜索连接', searchPlaceholder: '搜索连接名称、地址或拓扑' }), content: skeleton(4) })
   const load = async () => {
     try { items = await api.listConnections(); render() }
@@ -93,9 +102,11 @@ export async function mountConnections(root, navigate) {
       const searchable = [item.name, item.address || item.sentinel?.address, topologyLabel[item.topology]].filter(Boolean).join(' ').toLowerCase()
       return (!keyword || searchable.includes(keyword)) && (topology === 'all' || item.topology === topology)
     })
+    page = Math.min(page, Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE)))
+    const visibleConnections = filtered.slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
     const filters = select('topology-filter', '拓扑筛选', topology, [['all', '全部拓扑'], ['standalone', '单机 / 主从'], ['sentinel', 'Sentinel'], ['cluster', 'Cluster']])
     const action = button('新建连接', { id: 'create-connection', tone: 'primary', iconName: 'plus' })
-    const rows = filtered.map((connection) => `<article class="table-row connection-row">
+    const rows = visibleConnections.map((connection) => `<article class="table-row connection-row">
       <div class="identity"><strong>${escapeHtml(connection.name)}</strong><small class="mono">${escapeHtml(connection.address || connection.sentinel.address || '—')}</small></div>
       <div><small>拓扑</small><strong>${topologyLabel[connection.topology]}</strong></div>
       <div>${statusPill(connection.password_configured ? 'PASS' : 'DRAFT', connection.password_configured ? { PASS: ['凭据已加密', 'success'] } : { DRAFT: ['无密码', 'neutral'] })}</div>
@@ -103,12 +114,14 @@ export async function mountConnections(root, navigate) {
       <div class="row-actions">${button('测试', { extra: `data-connection-action="test" data-id="${connection.id}"` })}${button('编辑', { tone: 'ghost', extra: `data-connection-action="edit" data-id="${connection.id}"` })}${button('删除', { tone: 'ghost', extra: `data-connection-action="delete" data-id="${connection.id}" aria-label="删除 ${escapeHtml(connection.name)}"` })}</div>
     </article>`).join('')
     root.innerHTML = listPage({
-      toolbar: listToolbar({ searchLabel: '搜索连接', searchPlaceholder: '搜索连接名称、地址或拓扑', resultLabel: query || topology !== 'all' ? `${filtered.length} 条结果` : `共 ${items.length} 条`, filters, action }),
+      toolbar: listToolbar({ searchLabel: '搜索连接', searchPlaceholder: '搜索连接名称、地址或拓扑', filters, action }),
       summary: items.length ? summary([[String(items.length), '连接'], ['AES-GCM', '凭据保护']]) : '',
       content: items.length ? (filtered.length ? table(['连接名称 / 地址', '拓扑', '凭据', '最近检查', '操作'], rows, 'connection-table', 'Redis 连接列表') : emptyState('没有匹配的连接', '请调整搜索或拓扑筛选条件')) : emptyState('暂无 Redis 连接', '先建立源端和目标端连接，再创建同步任务。'),
+      pagination: pagination(filtered.length, page, LIST_PAGE_SIZE),
     })
-    bindSearch(root, query, (value) => { query = value; render() })
-    root.querySelector('#topology-filter').addEventListener('change', (event) => { topology = event.target.value; render() })
+    bindSearch(root, query, (value) => { query = value; page = 1; render() })
+    bindPagination(root, (value) => { page = value; render() })
+    root.querySelector('#topology-filter').addEventListener('change', (event) => { topology = event.target.value; page = 1; render() })
     root.querySelector('#refresh-list').addEventListener('click', load)
     root.querySelector('#create-connection').addEventListener('click', () => navigate('/connections/new'))
     root.querySelectorAll('[data-connection-action]').forEach((control) => control.addEventListener('click', async () => {
@@ -128,6 +141,7 @@ export async function mountConnections(root, navigate) {
 export async function mountSystem(root) {
   root.innerHTML = listPage({ toolbar: listToolbar({ searchLabel: '搜索系统信息', searchPlaceholder: '搜索配置项、状态或路径' }), content: skeleton(4) })
   let query = ''
+  let page = 1
   const load = async () => {
     try {
       const info = await api.systemInfo()
@@ -140,13 +154,17 @@ export async function mountSystem(root) {
       const render = () => {
         const keyword = query.toLowerCase().trim()
         const filtered = rows.filter((row) => !keyword || row.some((value) => String(value).toLowerCase().includes(keyword)))
-        const rowHtml = filtered.map((row) => `<article class="table-row system-row"><div class="identity"><strong>${escapeHtml(row[0])}</strong><small>${escapeHtml(row[1])}</small></div><strong>${escapeHtml(row[2])}</strong><code>${escapeHtml(row[3])}</code></article>`).join('')
+        page = Math.min(page, Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE)))
+        const visibleRows = filtered.slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
+        const rowHtml = visibleRows.map((row) => `<article class="table-row system-row"><div class="identity"><strong>${escapeHtml(row[0])}</strong><small>${escapeHtml(row[1])}</small></div><strong>${escapeHtml(row[2])}</strong><code>${escapeHtml(row[3])}</code></article>`).join('')
         root.innerHTML = listPage({
-          toolbar: listToolbar({ searchLabel: '搜索系统信息', searchPlaceholder: '搜索配置项、状态或路径', resultLabel: query ? `${filtered.length} 条结果` : `共 ${rows.length} 条` }),
+          toolbar: listToolbar({ searchLabel: '搜索系统信息', searchPlaceholder: '搜索配置项、状态或路径' }),
           summary: summary([['Ready', '控制面'], [info.storage, '存储'], [`${info.version} · ${info.git_commit}`, '版本']]),
           content: filtered.length ? table(['配置项', '状态', '配置值'], rowHtml, 'system-table', '系统信息列表') : emptyState('没有匹配的系统信息'),
+          pagination: pagination(filtered.length, page, LIST_PAGE_SIZE),
         }) + `<aside class="info-banner"><strong>部署边界</strong><p>控制面默认监听回环地址。对外提供页面时，请通过带 TLS 和访问控制的反向代理暴露。</p></aside>`
-        bindSearch(root, query, (value) => { query = value; render() })
+        bindSearch(root, query, (value) => { query = value; page = 1; render() })
+        bindPagination(root, (value) => { page = value; render() })
         root.querySelector('#refresh-list').addEventListener('click', load)
       }
       render()
