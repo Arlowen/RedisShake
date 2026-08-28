@@ -29,9 +29,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .brand { height: 48px; display: flex; align-items: center; padding: 0 12px; color: var(--ink); text-decoration: none; }
 .brand strong { font-size: var(--font-heading); letter-spacing: -.025em; }
 .sidebar nav { display: grid; gap: 4px; margin-top: 26px; }
-.sidebar nav a { min-height: 50px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; padding: 8px 12px; color: var(--ink); border: 1px solid transparent; border-radius: 10px; text-decoration: none; transition: transform .16s ease, background .16s ease; }
+.sidebar nav a { min-height: 50px; display: flex; align-items: center; padding: 8px 12px; color: var(--ink); border: 1px solid transparent; border-radius: 10px; text-decoration: none; transition: transform .16s ease, background .16s ease; }
 .sidebar nav a span { font-size: 14px; font-weight: 620; }
-.sidebar nav a small { color: var(--faint); font-size: var(--font-caption); letter-spacing: .03em; text-transform: uppercase; }
 .sidebar nav a:hover { background: var(--surface-strong); transform: translateX(2px); }
 .sidebar nav a.active { color: var(--primary-strong); background: var(--primary-soft); border-color: color-mix(in srgb, var(--primary) 15%, transparent); }
 .sidebar-status { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 14px 12px; border-top: 1px solid var(--line); }

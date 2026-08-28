@@ -33,11 +33,11 @@ function applyTheme() {
 function shell(context) {
   const active = location.pathname.startsWith('/connections') ? 'connections' : location.pathname.startsWith('/system') ? 'system' : 'tasks'
   return `<div class="app-shell">
-    <aside class="sidebar" id="sidebar"><a href="/tasks" data-link class="brand"><strong>RedisShake</strong></a>
-      <nav aria-label="主导航"><a href="/tasks" data-link class="${active === 'tasks' ? 'active' : ''}"><span>同步任务</span><small>Tasks</small></a><a href="/connections" data-link class="${active === 'connections' ? 'active' : ''}"><span>连接管理</span><small>Connections</small></a><a href="/system" data-link class="${active === 'system' ? 'active' : ''}"><span>系统信息</span><small>System</small></a></nav>
+    <aside class="sidebar" id="sidebar"><a href="/tasks" data-link class="brand"><strong>RedisShake Web</strong></a>
+      <nav aria-label="主导航"><a href="/tasks" data-link class="${active === 'tasks' ? 'active' : ''}"><span>同步任务</span></a><a href="/connections" data-link class="${active === 'connections' ? 'active' : ''}"><span>连接管理</span></a><a href="/system" data-link class="${active === 'system' ? 'active' : ''}"><span>系统信息</span></a></nav>
       <div class="sidebar-status"><i></i><span><strong>Control plane</strong><small>Ready</small></span></div>
     </aside>
-    <section class="workspace"><header class="topbar"><div class="mobile-brand">RedisShake</div><div class="page-context">${context[0] ? `<span>${escapeHtml(context[0])}</span><i>/</i>` : ''}<h1>${escapeHtml(context[1])}</h1></div><div class="topbar-tools">${select('theme-select', '外观设置', themePreference, [['system', '跟随系统'], ['light', '浅色模式'], ['dark', '深色模式']], { align: 'end', size: 'compact' })}<span class="ready-dot"><i></i>Ready</span><button id="mobile-menu" aria-label="打开侧边栏">${icon('menu', 20)}</button></div></header><main id="page-root"></main></section>
+    <section class="workspace"><header class="topbar"><div class="mobile-brand">RedisShake Web</div><div class="page-context">${context[0] ? `<span>${escapeHtml(context[0])}</span><i>/</i>` : ''}<h1>${escapeHtml(context[1])}</h1></div><div class="topbar-tools">${select('theme-select', '外观设置', themePreference, [['system', '跟随系统'], ['light', '浅色模式'], ['dark', '深色模式']], { align: 'end', size: 'compact' })}<span class="ready-dot"><i></i>Ready</span><button id="mobile-menu" aria-label="打开侧边栏">${icon('menu', 20)}</button></div></header><main id="page-root"></main></section>
     <button id="sidebar-backdrop" aria-label="关闭侧边栏"></button><div id="toast-root" aria-live="polite"></div>
   </div>`
 }
