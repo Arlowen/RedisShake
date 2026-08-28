@@ -33,7 +33,7 @@ function applyTheme() {
 function shell(context) {
   const active = location.pathname.startsWith('/connections') ? 'connections' : location.pathname.startsWith('/system') ? 'system' : 'tasks'
   return `<div class="app-shell">
-    <aside class="sidebar" id="sidebar"><a href="/tasks" data-link class="brand"><span class="brand-mark">R</span><strong>RedisShake</strong></a>
+    <aside class="sidebar" id="sidebar"><a href="/tasks" data-link class="brand"><strong>RedisShake</strong></a>
       <nav aria-label="主导航"><a href="/tasks" data-link class="${active === 'tasks' ? 'active' : ''}"><span>同步任务</span><small>Tasks</small></a><a href="/connections" data-link class="${active === 'connections' ? 'active' : ''}"><span>连接管理</span><small>Connections</small></a><a href="/system" data-link class="${active === 'system' ? 'active' : ''}"><span>系统信息</span><small>System</small></a></nav>
       <div class="sidebar-status"><i></i><span><strong>Control plane</strong><small>Ready</small></span></div>
     </aside>
