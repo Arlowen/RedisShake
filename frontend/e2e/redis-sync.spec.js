@@ -39,8 +39,8 @@ test('creates connections and runs a real RedisShake scan from the UI', async ({
   await expect(page.getByRole('heading', { name: '创建同步任务' })).toBeVisible()
   await page.getByLabel('任务名称', { exact: true }).fill(taskName)
   await page.getByText('扫描迁移', { exact: true }).click()
-  await page.getByRole('combobox', { name: /源端连接/ }).selectOption({ label: sourceName })
-  await page.getByRole('combobox', { name: /目标连接/ }).selectOption({ label: targetName })
+  await chooseSelect(page, '源端连接', sourceName)
+  await chooseSelect(page, '目标连接', targetName)
   await page.getByText('排除', { exact: true }).click()
   await page.getByLabel('Key 前缀', { exact: true }).fill('e2e:skip:')
   await page.getByRole('button', { name: '执行预检查' }).click()
@@ -55,6 +55,11 @@ test('creates connections and runs a real RedisShake scan from the UI', async ({
   await expect(page.getByText('stdout / stderr（已脱敏）', { exact: true })).toBeVisible()
   await expect(page.locator('.log-view')).toContainText('all done')
 })
+
+async function chooseSelect(page, label, option) {
+  await page.getByRole('button', { name: label, exact: true }).click()
+  await page.getByRole('option', { name: option, exact: true }).click()
+}
 
 async function createConnection(page, name, address, targetCheck) {
   await page.getByRole('button', { name: '新建连接' }).click()

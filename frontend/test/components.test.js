@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { button, listPage, listToolbar, table } from '../src/components.js'
+import { button, listPage, listToolbar, select, table } from '../src/components.js'
 import { defaultConnectionInput, defaultTaskSpec, escapeHtml } from '../src/lib.js'
 
 test('shared list shell keeps search, actions and table aligned in one component system', () => {
@@ -21,4 +21,13 @@ test('defaults provide complete RedisShake connection and task payloads', () => 
 
 test('HTML output escapes API-provided values', () => {
   assert.equal(escapeHtml('<script>"x"</script>'), '&lt;script&gt;&quot;x&quot;&lt;/script&gt;')
+})
+
+test('shared select renders a custom accessible listbox and stable form value', () => {
+  const control = select('topology', '拓扑类型', 'sentinel', [['standalone', '单机 / 主从'], ['sentinel', 'Sentinel']])
+  assert.match(control, /data-select-trigger/)
+  assert.match(control, /role="listbox"/)
+  assert.match(control, /role="option"/)
+  assert.match(control, /type="hidden" value="sentinel"/)
+  assert.match(control, /aria-selected="true"[^>]*><span class="select-check">/)
 })

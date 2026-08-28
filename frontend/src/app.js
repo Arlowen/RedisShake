@@ -1,5 +1,5 @@
 import { escapeHtml } from './lib.js'
-import { icon } from './components.js'
+import { icon, initSelects, select } from './components.js'
 import { mountConnectionEditor, mountConnections, mountSystem, mountTaskDetail, mountTaskEditor, mountTasks } from './pages.js'
 
 const app = document.querySelector('#app')
@@ -37,7 +37,7 @@ function shell(context) {
       <nav aria-label="主导航"><a href="/tasks" data-link class="${active === 'tasks' ? 'active' : ''}"><span>同步任务</span><small>Tasks</small></a><a href="/connections" data-link class="${active === 'connections' ? 'active' : ''}"><span>连接管理</span><small>Connections</small></a><a href="/system" data-link class="${active === 'system' ? 'active' : ''}"><span>系统信息</span><small>System</small></a></nav>
       <div class="sidebar-status"><i></i><span><strong>Control plane</strong><small>Ready</small></span></div>
     </aside>
-    <section class="workspace"><header class="topbar"><div class="mobile-brand">RedisShake</div><div class="page-context">${context[0] ? `<span>${escapeHtml(context[0])}</span><i>/</i>` : ''}<h1>${escapeHtml(context[1])}</h1></div><div class="topbar-tools"><select id="theme-select" aria-label="外观设置"><option value="system" ${themePreference === 'system' ? 'selected' : ''}>跟随系统</option><option value="light" ${themePreference === 'light' ? 'selected' : ''}>浅色</option><option value="dark" ${themePreference === 'dark' ? 'selected' : ''}>深色</option></select><span class="ready-dot"><i></i>Ready</span><button id="mobile-menu" aria-label="打开侧边栏">${icon('menu', 20)}</button></div></header><main id="page-root"></main></section>
+    <section class="workspace"><header class="topbar"><div class="mobile-brand">RedisShake</div><div class="page-context">${context[0] ? `<span>${escapeHtml(context[0])}</span><i>/</i>` : ''}<h1>${escapeHtml(context[1])}</h1></div><div class="topbar-tools">${select('theme-select', '外观设置', themePreference, [['system', '跟随系统'], ['light', '浅色模式'], ['dark', '深色模式']], { align: 'end', size: 'compact' })}<span class="ready-dot"><i></i>Ready</span><button id="mobile-menu" aria-label="打开侧边栏">${icon('menu', 20)}</button></div></header><main id="page-root"></main></section>
     <button id="sidebar-backdrop" aria-label="关闭侧边栏"></button><div id="toast-root" aria-live="polite"></div>
   </div>`
 }
@@ -64,4 +64,5 @@ export function navigate(path) {
 
 window.addEventListener('popstate', render)
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (themePreference === 'system') applyTheme() })
+initSelects()
 void render()

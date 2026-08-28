@@ -16,6 +16,7 @@ export function icon(name, size = 18) {
     stop: '<rect x="6" y="6" width="12" height="12" rx="1"></rect>',
     copy: '<rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path>',
     trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"></path>',
+    chevron: '<path d="m7 9.5 5 5 5-5"></path>',
   }
   return `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.arrow}</svg>`
 }
@@ -59,7 +60,7 @@ export function pageHeader(title, description, actions = '') {
 }
 
 export function field(label, control, help = '') {
-  return `<label class="field"><span>${escapeHtml(label)}</span>${control}${help ? `<small>${escapeHtml(help)}</small>` : ''}</label>`
+  return `<div class="field"><span class="field-label">${escapeHtml(label)}</span>${control}${help ? `<small>${escapeHtml(help)}</small>` : ''}</div>`
 }
 
 export function input(id, label, value = '', options = {}) {
@@ -71,8 +72,106 @@ export function textarea(id, label, value = '', placeholder = '', rows = 3) {
   return `<textarea id="${id}" name="${id}" rows="${rows}" aria-label="${escapeHtml(label)}" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value)}</textarea>`
 }
 
-export function select(id, label, value, options) {
-  return `<select id="${id}" name="${id}" aria-label="${escapeHtml(label)}">${options.map(([optionValue, optionLabel]) => `<option value="${escapeHtml(optionValue)}" ${String(optionValue) === String(value || '') ? 'selected' : ''}>${escapeHtml(optionLabel)}</option>`).join('')}</select>`
+export function select(id, label, value, options, { align = 'start', size = 'default' } = {}) {
+  const currentValue = String(value ?? '')
+  const selected = options.find(([optionValue]) => String(optionValue) === currentValue) || options[0] || ['', '暂无选项']
+  const listboxId = `${id}-listbox`
+  return `<div class="select-control select-${escapeHtml(size)} select-align-${escapeHtml(align)}" data-select>
+    <input id="${escapeHtml(id)}" name="${escapeHtml(id)}" type="hidden" value="${escapeHtml(selected[0])}" data-select-input>
+    <button type="button" class="select-trigger" data-select-trigger aria-label="${escapeHtml(label)}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${escapeHtml(listboxId)}">
+      <span class="select-value" data-select-value>${escapeHtml(selected[1])}</span>${icon('chevron', 16)}
+    </button>
+    <div id="${escapeHtml(listboxId)}" class="select-menu" role="listbox" aria-label="${escapeHtml(label)}" aria-hidden="true">
+      ${options.map(([optionValue, optionLabel]) => {
+        const active = String(optionValue) === String(selected[0])
+        return `<button type="button" role="option" tabindex="-1" data-select-option data-value="${escapeHtml(optionValue)}" aria-selected="${active}"><span class="select-check">${icon('check', 15)}</span><span>${escapeHtml(optionLabel)}</span></button>`
+      }).join('')}
+    </div>
+  </div>`
+}
+
+let selectsInitialized = false
+
+function closeSelect(control) {
+  if (!control) return
+  control.classList.remove('open', 'drop-up')
+  control.querySelector('[data-select-trigger]')?.setAttribute('aria-expanded', 'false')
+  control.querySelector('.select-menu')?.setAttribute('aria-hidden', 'true')
+}
+
+function closeSelects(except) {
+  document.querySelectorAll('[data-select].open').forEach((control) => { if (control !== except) closeSelect(control) })
+}
+
+function openSelect(control, focusOption = false, direction = 1) {
+  closeSelects(control)
+  const trigger = control.querySelector('[data-select-trigger]')
+  const menu = control.querySelector('.select-menu')
+  const options = [...control.querySelectorAll('[data-select-option]')]
+  const selectedIndex = Math.max(0, options.findIndex((option) => option.getAttribute('aria-selected') === 'true'))
+  control.classList.add('open')
+  trigger.setAttribute('aria-expanded', 'true')
+  menu.setAttribute('aria-hidden', 'false')
+  const rect = control.getBoundingClientRect()
+  const menuHeight = Math.min(menu.scrollHeight, 268)
+  if (window.innerHeight - rect.bottom < menuHeight + 16 && rect.top > menuHeight + 16) control.classList.add('drop-up')
+  if (focusOption && options.length) requestAnimationFrame(() => options[direction < 0 ? Math.max(0, selectedIndex) : selectedIndex].focus())
+}
+
+function chooseSelect(control, option) {
+  const input = control.querySelector('[data-select-input]')
+  const trigger = control.querySelector('[data-select-trigger]')
+  const nextValue = option.dataset.value ?? ''
+  const changed = input.value !== nextValue
+  input.value = nextValue
+  control.querySelector('[data-select-value]').textContent = option.textContent.trim()
+  control.querySelectorAll('[data-select-option]').forEach((item) => item.setAttribute('aria-selected', String(item === option)))
+  closeSelect(control)
+  trigger.focus()
+  if (changed) input.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
+export function initSelects() {
+  if (selectsInitialized) return
+  selectsInitialized = true
+  document.addEventListener('click', (event) => {
+    if (!(event.target instanceof Element)) return
+    const option = event.target.closest('[data-select-option]')
+    if (option) { chooseSelect(option.closest('[data-select]'), option); return }
+    const trigger = event.target.closest('[data-select-trigger]')
+    if (trigger) {
+      const control = trigger.closest('[data-select]')
+      control.classList.contains('open') ? closeSelect(control) : openSelect(control)
+      return
+    }
+    closeSelects()
+  })
+  document.addEventListener('keydown', (event) => {
+    if (!(event.target instanceof Element)) return
+    const trigger = event.target.closest('[data-select-trigger]')
+    if (trigger) {
+      const control = trigger.closest('[data-select]')
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); openSelect(control, true, event.key === 'ArrowUp' ? -1 : 1) }
+      else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); control.classList.contains('open') ? closeSelect(control) : openSelect(control, true) }
+      else if (event.key === 'Escape') closeSelect(control)
+      return
+    }
+    const option = event.target.closest('[data-select-option]')
+    if (!option) return
+    const control = option.closest('[data-select]')
+    const options = [...control.querySelectorAll('[data-select-option]')]
+    const index = options.indexOf(option)
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      options[(index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length]?.focus()
+    } else if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault(); options[event.key === 'Home' ? 0 : options.length - 1]?.focus()
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault(); chooseSelect(control, option)
+    } else if (event.key === 'Escape') {
+      event.preventDefault(); closeSelect(control); control.querySelector('[data-select-trigger]').focus()
+    } else if (event.key === 'Tab') closeSelect(control)
+  })
 }
 
 export function segmented(name, value, options) {
