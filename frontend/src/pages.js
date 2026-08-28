@@ -146,7 +146,7 @@ export async function mountConnectionEditor(root, navigate) {
   let purpose = 'source'
   let result
   const render = () => {
-    root.innerHTML = `<div class="editor-page"><div class="editor-layout"><main class="editor-surface">
+    root.innerHTML = `<div class="editor-page connection-editor-page"><div class="editor-layout"><main class="editor-surface">
         <section class="form-section"><header><span>01</span><div><h3>基础连接</h3><p>RedisShake 用这些信息访问真实数据节点</p></div></header>
           <div class="form-grid two">${field('连接名称', input('connection-name', '连接名称', form.name, { placeholder: '例如：生产源端' }))}${field('Redis 地址', input('connection-address', 'Redis 地址', form.address, { placeholder: 'host:port' }))}</div>
           <div class="form-grid two">${field('Redis 用户名', input('connection-username', 'Redis 用户名', form.username, { placeholder: '未启用 ACL 可留空' }))}${field('Redis 密码', input('connection-password', 'Redis 密码', form.password, { type: 'password', placeholder: '未设置密码可留空' }))}</div>
