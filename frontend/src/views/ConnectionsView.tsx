@@ -1,6 +1,7 @@
 import { App, Button, Dropdown, Modal, Select } from 'antd'
-import { Copy, DotsThree, Trash } from '@phosphor-icons/react'
+import { Copy, DotsThree, Plus, Trash } from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import type { Connection, Topology } from '@/api/types'
 import ConnectionDrawer from '@/components/ConnectionDrawer'
@@ -13,6 +14,7 @@ import { useConnections } from '@/state/ConnectionsContext'
 import { formatDate, topologyLabel } from '@/utils/presentation'
 
 export default function ConnectionsView() {
+  const navigate = useNavigate()
   const store = useConnections()
   const { message } = App.useApp()
   const [editing, setEditing] = useState<Connection>()
@@ -45,7 +47,7 @@ export default function ConnectionsView() {
   }
 
   return <PageScaffold error={store.error} onRetry={() => void store.load(true)}>
-    <PageToolbar ariaLabel="连接管理工具栏" search={{ value: query, placeholder: '搜索连接名称或地址', ariaLabel: '搜索连接', onChange: setQuery }} refreshing={store.loading} refreshLabel="刷新连接" onRefresh={() => void store.load(true)}>
+    <PageToolbar ariaLabel="连接管理工具栏" search={{ value: query, placeholder: '搜索连接名称或地址', ariaLabel: '搜索连接', onChange: setQuery }} refreshing={store.loading} refreshLabel="刷新连接" onRefresh={() => void store.load(true)} afterRefresh={<Button type="primary" size="small" icon={<Plus size={14} />} onClick={() => navigate('/connections/new')}>新建连接</Button>}>
       <Select size="small" value={topologyFilter} aria-label="拓扑筛选" style={{ width: 124 }} options={[{ label: '全部拓扑', value: 'all' }, { label: '单机 / 主从', value: 'standalone' }, { label: 'Sentinel', value: 'sentinel' }, { label: 'Cluster', value: 'cluster' }]} onChange={(value) => setTopologyFilter(value)} />
     </PageToolbar>
     {store.loading && !store.loaded ? <div className="skeleton-list">{[0, 1, 2, 3].map((item) => <div key={item} className="skeleton-row" />)}</div>

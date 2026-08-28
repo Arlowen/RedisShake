@@ -45,4 +45,8 @@ describe('workspace page context', () => {
     expect(resolvePageContext('/tasks/new')).toMatchObject({ parent: '同步任务', title: '创建任务' })
     expect(resolvePageContext('/connections/new')).toMatchObject({ parent: '连接管理', title: '新建连接' })
   })
+
+  it('keeps connection creation out of the global top bar', () => {
+    expect(resolvePageContext('/connections').action).toBeUndefined()
+  })
 })
