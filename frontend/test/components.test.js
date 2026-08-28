@@ -10,7 +10,7 @@ test('shared list shell keeps search, actions and table aligned in one component
   assert.match(page, /class="list-page"/)
   assert.match(page, /class="list-results"/)
   assert.match(page, /aria-label="搜索任务"/)
-  assert.match(page, /aria-keyshortcuts="\/"/)
+  assert.doesNotMatch(page, /search-shortcut|aria-keyshortcuts/)
   assert.match(page, /data-search-clear/)
   assert.ok(page.indexOf('data-test-filter') < page.indexOf('data-search'))
   assert.match(page, /class="data-table/)

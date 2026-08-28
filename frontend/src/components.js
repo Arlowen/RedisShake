@@ -33,17 +33,17 @@ export function statusPill(state, meta, pulse = false) {
 }
 
 export function listToolbar({ searchLabel, searchPlaceholder, filters = '', sort = '', action = '', refreshing = false }) {
+  const primary = `${filters}${searchLabel ? searchControl(searchLabel, searchPlaceholder) : ''}`
   return `<section class="list-toolbar" aria-label="管理工具栏">
-    <div class="toolbar-primary">${filters}${searchControl(searchLabel, searchPlaceholder)}</div>
+    ${primary ? `<div class="toolbar-primary">${primary}</div>` : ''}
     <div class="toolbar-actions">${sort}${button('刷新', { id: 'refresh-list', tone: 'ghost', iconName: 'refresh', extra: `aria-label="刷新${refreshing ? '中' : ''}" title="刷新"` })}${action}</div>
   </section>`
 }
 
 export function searchControl(label, placeholder) {
   return `<div class="search-control" role="search" data-search>
-    <label for="list-search">${icon('search', 17)}<span class="sr-only">${escapeHtml(label)}</span><input id="list-search" data-search-input aria-label="${escapeHtml(label)}" aria-keyshortcuts="/" autocomplete="off" spellcheck="false" placeholder="${escapeHtml(placeholder)}"></label>
+    <label for="list-search">${icon('search', 17)}<span class="sr-only">${escapeHtml(label)}</span><input id="list-search" data-search-input aria-label="${escapeHtml(label)}" autocomplete="off" spellcheck="false" placeholder="${escapeHtml(placeholder)}"></label>
     <button type="button" class="search-clear" data-search-clear aria-label="清空搜索内容" title="清空">${icon('close', 14)}</button>
-    <kbd class="search-shortcut" aria-hidden="true">/</kbd>
   </div>`
 }
 
@@ -141,12 +141,6 @@ export function initSearches() {
   })
   document.addEventListener('keydown', (event) => {
     const target = event.target
-    const typing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable
-    if (event.key === '/' && !typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
-      const input = document.querySelector('[data-search-input]')
-      if (input) { event.preventDefault(); input.focus(); input.select() }
-      return
-    }
     if (event.key === 'Escape' && target instanceof HTMLInputElement && target.matches('[data-search-input]')) {
       if (target.value) { event.preventDefault(); clearSearch(target) }
       else target.blur()

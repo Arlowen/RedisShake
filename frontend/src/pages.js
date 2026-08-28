@@ -133,8 +133,7 @@ export async function mountConnections(root, navigate) {
 }
 
 export async function mountSystem(root) {
-  root.innerHTML = listPage({ toolbar: listToolbar({ searchLabel: '搜索系统信息', searchPlaceholder: '搜索配置项、状态或路径' }), content: skeleton(4) })
-  let query = ''
+  root.innerHTML = listPage({ toolbar: listToolbar({}), content: skeleton(4) })
   let page = 1
   const load = async () => {
     try {
@@ -146,19 +145,16 @@ export async function mountSystem(root) {
         ['运行约束', `最多 ${info.max_concurrent_runs} 个活动 Run`, '已生效', `日志保留 ${info.log_retention_days === 0 ? '不限期' : `${info.log_retention_days} 天`}`],
       ]
       const render = () => {
-        const keyword = query.toLowerCase().trim()
-        const filtered = rows.filter((row) => !keyword || row.some((value) => String(value).toLowerCase().includes(keyword)))
-        page = Math.min(page, Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE)))
-        const visibleRows = filtered.slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
+        page = Math.min(page, Math.max(1, Math.ceil(rows.length / LIST_PAGE_SIZE)))
+        const visibleRows = rows.slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
         const rowHtml = visibleRows.map((row) => `<article class="table-row system-row"><div class="identity"><strong>${escapeHtml(row[0])}</strong><small>${escapeHtml(row[1])}</small></div><strong>${escapeHtml(row[2])}</strong><code>${escapeHtml(row[3])}</code></article>`).join('')
         const deploymentBoundary = `<aside class="info-banner"><strong>部署边界</strong><p>控制面默认监听回环地址。对外提供页面时，请通过带 TLS 和访问控制的反向代理暴露。</p></aside>`
         root.innerHTML = listPage({
-          toolbar: listToolbar({ searchLabel: '搜索系统信息', searchPlaceholder: '搜索配置项、状态或路径' }),
+          toolbar: listToolbar({}),
           summary: summary([['Ready', '控制面'], [info.storage, '存储'], [`${info.version} · ${info.git_commit}`, '版本']]),
-          content: `${filtered.length ? table(['配置项', '状态', '配置值'], rowHtml, 'system-table', '系统信息列表') : emptyState('没有匹配的系统信息')}${deploymentBoundary}`,
-          pagination: pagination(filtered.length, page, LIST_PAGE_SIZE),
+          content: `${table(['配置项', '状态', '配置值'], rowHtml, 'system-table', '系统信息列表')}${deploymentBoundary}`,
+          pagination: pagination(rows.length, page, LIST_PAGE_SIZE),
         })
-        bindSearch(root, query, (value) => { query = value; page = 1; render() })
         bindPagination(root, (value) => { page = value; render() })
         root.querySelector('#refresh-list').addEventListener('click', load)
       }
