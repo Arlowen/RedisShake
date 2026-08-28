@@ -25,8 +25,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .muted { color: var(--muted); }
 
 .app-shell { min-height: 100dvh; display: grid; grid-template-columns: 248px minmax(0, 1fr); }
-.sidebar { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; padding: 18px 16px; background: var(--bg); }
-.brand { height: 48px; display: flex; align-items: center; padding: 0 12px; color: var(--ink); text-decoration: none; }
+.sidebar { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; padding: 0 16px 18px; background: var(--bg); }
+.brand { height: 65px; display: flex; align-items: center; margin: 0 -16px; padding: 0 28px; color: var(--ink); border-bottom: 1px solid var(--line); text-decoration: none; }
 .brand strong { font-size: var(--font-heading); letter-spacing: -.025em; }
 .sidebar nav { display: grid; gap: 4px; margin-top: 26px; }
 .sidebar nav a { min-height: 50px; display: flex; align-items: center; padding: 8px 12px; color: var(--ink); border: 1px solid transparent; border-radius: 10px; text-decoration: none; transition: transform .16s ease, background .16s ease; }
