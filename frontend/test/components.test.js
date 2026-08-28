@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { button, listPage, listToolbar, select, table } from '../src/components.js'
+import { button, emptyState, listPage, listToolbar, select, table } from '../src/components.js'
 import { defaultConnectionInput, defaultTaskSpec, escapeHtml } from '../src/lib.js'
 
 test('shared list shell keeps search, actions and table aligned in one component system', () => {
@@ -30,4 +30,10 @@ test('shared select renders a custom accessible listbox and stable form value', 
   assert.match(control, /role="option"/)
   assert.match(control, /type="hidden" value="sentinel"/)
   assert.match(control, /aria-selected="true"[^>]*><span class="select-check">/)
+})
+
+test('shared empty state groups its content for consistent centering', () => {
+  const empty = emptyState('暂无同步任务', '创建任务后，可在这里查看运行状态。')
+  assert.match(empty, /class="empty-row"><div class="empty-content">/)
+  assert.match(empty, /暂无同步任务/)
 })

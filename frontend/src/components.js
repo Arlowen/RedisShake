@@ -46,7 +46,7 @@ export function table(headers, rows, className = '') {
 }
 
 export function emptyState(title, description = '') {
-  return `<div class="empty-row"><div class="empty-marker"></div><div><strong>${escapeHtml(title)}</strong>${description ? `<span>${escapeHtml(description)}</span>` : ''}</div></div>`
+  return `<div class="empty-row"><div class="empty-content"><div class="empty-marker"></div><div><strong>${escapeHtml(title)}</strong>${description ? `<span>${escapeHtml(description)}</span>` : ''}</div></div></div>`
 }
 
 export function skeleton(rows = 4) { return `<div class="skeleton-list">${Array.from({ length: rows }, () => '<div class="skeleton-row"></div>').join('')}</div>` }
