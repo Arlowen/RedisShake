@@ -30,19 +30,27 @@ export function statusPill(state, meta, pulse = false) {
   return `<span class="status-pill tone-${tone}${pulse ? ' pulse' : ''}"><i></i>${escapeHtml(label)}</span>`
 }
 
-export function listToolbar({ searchLabel, searchPlaceholder, filters = '', action = '', refreshing = false }) {
+export function listToolbar({ searchLabel, searchPlaceholder, filters = '', action = '', resultLabel = '', refreshing = false }) {
   return `<section class="list-toolbar" aria-label="管理工具栏">
-    <label class="search-control">${icon('search', 17)}<span class="sr-only">${escapeHtml(searchLabel)}</span><input id="list-search" aria-label="${escapeHtml(searchLabel)}" placeholder="${escapeHtml(searchPlaceholder)}"></label>
+    <div class="toolbar-primary">${searchControl(searchLabel, searchPlaceholder, { resultLabel })}</div>
     <div class="toolbar-actions">${filters}${button('刷新', { id: 'refresh-list', tone: 'ghost', iconName: 'refresh', extra: `aria-label="刷新${refreshing ? '中' : ''}" title="刷新"` })}${action}</div>
   </section>`
 }
 
-export function listPage({ toolbar, summary = '', content = '', error = '' }) {
-  return `<div class="list-page">${error ? inlineError(error) : ''}${toolbar}${summary}${content}</div>`
+export function searchControl(label, placeholder, { resultLabel = '' } = {}) {
+  return `<div class="search-control" role="search" data-search>
+    <label for="list-search">${icon('search', 17)}<span class="sr-only">${escapeHtml(label)}</span><input id="list-search" data-search-input aria-label="${escapeHtml(label)}" aria-keyshortcuts="/" autocomplete="off" spellcheck="false" placeholder="${escapeHtml(placeholder)}"></label>
+    <button type="button" class="search-clear" data-search-clear aria-label="清空搜索内容" title="清空">${icon('close', 14)}</button>
+    <kbd class="search-shortcut" aria-hidden="true">/</kbd>
+  </div>${resultLabel ? `<span class="toolbar-result" aria-live="polite">${escapeHtml(resultLabel)}</span>` : ''}`
 }
 
-export function table(headers, rows, className = '') {
-  return `<section class="data-table ${className}"><div class="table-head">${headers.map((header) => `<span>${escapeHtml(header)}</span>`).join('')}</div><div class="table-body">${rows}</div></section>`
+export function listPage({ toolbar, summary = '', content = '', error = '' }) {
+  return `<div class="list-page">${error ? inlineError(error) : ''}${toolbar}<section class="list-results">${summary}<div class="list-content">${content}</div></section></div>`
+}
+
+export function table(headers, rows, className = '', label = '数据列表') {
+  return `<section class="data-table ${className}" role="table" aria-label="${escapeHtml(label)}"><div class="table-head" role="row">${headers.map((header) => `<span role="columnheader">${escapeHtml(header)}</span>`).join('')}</div><div class="table-body" role="rowgroup">${rows}</div></section>`
 }
 
 export function emptyState(title, description = '') {
@@ -70,6 +78,59 @@ export function input(id, label, value = '', options = {}) {
 
 export function textarea(id, label, value = '', placeholder = '', rows = 3) {
   return `<textarea id="${id}" name="${id}" rows="${rows}" aria-label="${escapeHtml(label)}" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value)}</textarea>`
+}
+
+export function bindSearch(root, value, callback) {
+  const input = root.querySelector('[data-search-input]')
+  if (!input) return
+  input.value = value
+  input.closest('[data-search]')?.classList.toggle('has-value', Boolean(value))
+  input.addEventListener('input', (event) => {
+    const nextValue = event.target.value
+    const caret = event.target.selectionStart ?? nextValue.length
+    callback(nextValue)
+    const nextInput = root.querySelector('[data-search-input]')
+    if (!nextInput) return
+    nextInput.focus({ preventScroll: true })
+    nextInput.setSelectionRange(caret, caret)
+  })
+}
+
+let searchesInitialized = false
+
+function clearSearch(input) {
+  if (!input) return
+  input.value = ''
+  input.closest('[data-search]')?.classList.remove('has-value')
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  requestAnimationFrame(() => document.querySelector('[data-search-input]')?.focus())
+}
+
+export function initSearches() {
+  if (searchesInitialized) return
+  searchesInitialized = true
+  document.addEventListener('input', (event) => {
+    const input = event.target.closest?.('[data-search-input]')
+    if (input) input.closest('[data-search]')?.classList.toggle('has-value', Boolean(input.value))
+  })
+  document.addEventListener('click', (event) => {
+    if (!(event.target instanceof Element)) return
+    const clear = event.target.closest('[data-search-clear]')
+    if (clear) clearSearch(clear.closest('[data-search]')?.querySelector('[data-search-input]'))
+  })
+  document.addEventListener('keydown', (event) => {
+    const target = event.target
+    const typing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable
+    if (event.key === '/' && !typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      const input = document.querySelector('[data-search-input]')
+      if (input) { event.preventDefault(); input.focus(); input.select() }
+      return
+    }
+    if (event.key === 'Escape' && target instanceof HTMLInputElement && target.matches('[data-search-input]')) {
+      if (target.value) { event.preventDefault(); clearSearch(target) }
+      else target.blur()
+    }
+  })
 }
 
 export function select(id, label, value, options, { align = 'start', size = 'default' } = {}) {

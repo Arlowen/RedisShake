@@ -1,5 +1,5 @@
 import { escapeHtml } from './lib.js'
-import { icon, initSelects, select } from './components.js'
+import { icon, initSearches, initSelects, select } from './components.js'
 import { mountConnectionEditor, mountConnections, mountSystem, mountTaskDetail, mountTaskEditor, mountTasks } from './pages.js'
 
 const app = document.querySelector('#app')
@@ -65,4 +65,5 @@ export function navigate(path) {
 window.addEventListener('popstate', render)
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (themePreference === 'system') applyTheme() })
 initSelects()
+initSearches()
 void render()

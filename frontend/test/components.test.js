@@ -5,11 +5,16 @@ import { button, emptyState, listPage, listToolbar, select, table } from '../src
 import { defaultConnectionInput, defaultTaskSpec, escapeHtml } from '../src/lib.js'
 
 test('shared list shell keeps search, actions and table aligned in one component system', () => {
-  const toolbar = listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称', action: button('创建任务', { tone: 'primary' }) })
-  const page = listPage({ toolbar, content: table(['名称'], '<article class="table-row">任务</article>') })
+  const toolbar = listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称、连接或状态', resultLabel: '共 3 条', action: button('创建任务', { tone: 'primary' }) })
+  const page = listPage({ toolbar, content: table(['名称'], '<article class="table-row">任务</article>', 'task-table', '同步任务列表') })
   assert.match(page, /class="list-page"/)
+  assert.match(page, /class="list-results"/)
   assert.match(page, /aria-label="搜索任务"/)
+  assert.match(page, /aria-keyshortcuts="\/"/)
+  assert.match(page, /data-search-clear/)
+  assert.match(page, /共 3 条/)
   assert.match(page, /class="data-table/)
+  assert.match(page, /role="table" aria-label="同步任务列表"/)
   assert.match(page, /创建任务/)
 })
 

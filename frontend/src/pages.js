@@ -3,7 +3,7 @@ import {
   numbers, runStateMeta, stripAnsi, taskStateMeta, topologyLabel,
 } from './lib.js'
 import {
-  bindSegments, button, checkPanel, confirmDialog, emptyState, field, icon, inlineError, input, listPage, listToolbar,
+  bindSearch, bindSegments, button, checkPanel, confirmDialog, emptyState, field, icon, inlineError, input, listPage, listToolbar,
   pageHeader, segmented, select, skeleton, statusPill, summary, table, textarea, toast,
 } from './components.js'
 
@@ -21,7 +21,7 @@ export async function mountTasks(root, navigate) {
   let query = ''
   let state = 'all'
   let sort = 'updated'
-  root.innerHTML = listPage({ toolbar: listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称' }), content: skeleton(5) })
+  root.innerHTML = listPage({ toolbar: listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称、连接或状态' }), content: skeleton(5) })
 
   const load = async () => {
     try {
@@ -33,7 +33,12 @@ export async function mountTasks(root, navigate) {
 
   const render = () => {
     const names = Object.fromEntries(connections.map((item) => [item.id, item.name]))
-    const filtered = tasks.filter((task) => (!query || task.spec.name.toLowerCase().includes(query.toLowerCase())) && (state === 'all' || task.state === state))
+    const keyword = query.trim().toLowerCase()
+    const filtered = tasks.filter((task) => {
+      const run = latestRuns[task.id]
+      const searchable = [task.spec.name, names[task.spec.source_connection_id], names[task.spec.target_connection_id], modeLabel[task.spec.mode], taskStateMeta[task.state]?.[0], runStateMeta[run?.state]?.[0]].filter(Boolean).join(' ').toLowerCase()
+      return (!keyword || searchable.includes(keyword)) && (state === 'all' || task.state === state)
+    })
       .sort((a, b) => sort === 'name' ? a.spec.name.localeCompare(b.spec.name) : sort === 'state' ? a.state.localeCompare(b.state) : b.updated_at.localeCompare(a.updated_at))
     const filters = `${segmented('task-state', state, [['all', '全部'], ['DRAFT', '草稿'], ['READY', '可启动']])}${select('task-sort', '任务排序', sort, [['updated', '最近更新'], ['name', '任务名称'], ['state', '任务状态']])}`
     const action = button('创建任务', { id: 'create-task', tone: 'primary', iconName: 'plus' })
@@ -51,11 +56,11 @@ export async function mountTasks(root, navigate) {
     const running = Object.values(latestRuns).filter(isActive).length
     const ready = tasks.filter((task) => task.state === 'READY').length
     root.innerHTML = listPage({
-      toolbar: listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称', filters, action }),
+      toolbar: listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称、连接或状态', resultLabel: query || state !== 'all' ? `${filtered.length} 条结果` : `共 ${tasks.length} 条`, filters, action }),
       summary: tasks.length ? summary([[String(tasks.length), '任务'], [String(running), '运行中'], [String(ready), '可启动']]) : '',
-      content: tasks.length ? (filtered.length ? table(['任务名称', '同步链路', '状态', '最近更新', '操作'], rows, 'task-table') : emptyState('没有匹配的任务', '请调整搜索或筛选条件')) : emptyState('暂无同步任务', '创建任务后，可在这里查看运行状态与迁移进度。'),
+      content: tasks.length ? (filtered.length ? table(['任务名称', '同步链路', '状态', '最近更新', '操作'], rows, 'task-table', '同步任务列表') : emptyState('没有匹配的任务', '请调整搜索或筛选条件')) : emptyState('暂无同步任务', '创建任务后，可在这里查看运行状态与迁移进度。'),
     })
-    const search = root.querySelector('#list-search'); search.value = query; search.addEventListener('input', (event) => { query = event.target.value; render() })
+    bindSearch(root, query, (value) => { query = value; render() })
     root.querySelector('#task-sort').addEventListener('change', (event) => { sort = event.target.value; render() })
     bindSegments(root, (_name, value) => { state = value; render() })
     root.querySelector('#refresh-list').addEventListener('click', load)
@@ -77,14 +82,17 @@ export async function mountConnections(root, navigate) {
   let items = []
   let query = ''
   let topology = 'all'
-  root.innerHTML = listPage({ toolbar: listToolbar({ searchLabel: '搜索连接', searchPlaceholder: '搜索连接名称或地址' }), content: skeleton(4) })
+  root.innerHTML = listPage({ toolbar: listToolbar({ searchLabel: '搜索连接', searchPlaceholder: '搜索连接名称、地址或拓扑' }), content: skeleton(4) })
   const load = async () => {
     try { items = await api.listConnections(); render() }
     catch (error) { root.innerHTML = inlineError(error.message); root.querySelector('#retry-page')?.addEventListener('click', load) }
   }
   const render = () => {
     const keyword = query.trim().toLowerCase()
-    const filtered = items.filter((item) => (!keyword || item.name.toLowerCase().includes(keyword) || String(item.address || item.sentinel.address || '').toLowerCase().includes(keyword)) && (topology === 'all' || item.topology === topology))
+    const filtered = items.filter((item) => {
+      const searchable = [item.name, item.address || item.sentinel?.address, topologyLabel[item.topology]].filter(Boolean).join(' ').toLowerCase()
+      return (!keyword || searchable.includes(keyword)) && (topology === 'all' || item.topology === topology)
+    })
     const filters = select('topology-filter', '拓扑筛选', topology, [['all', '全部拓扑'], ['standalone', '单机 / 主从'], ['sentinel', 'Sentinel'], ['cluster', 'Cluster']])
     const action = button('新建连接', { id: 'create-connection', tone: 'primary', iconName: 'plus' })
     const rows = filtered.map((connection) => `<article class="table-row connection-row">
@@ -95,11 +103,11 @@ export async function mountConnections(root, navigate) {
       <div class="row-actions">${button('测试', { extra: `data-connection-action="test" data-id="${connection.id}"` })}${button('编辑', { tone: 'ghost', extra: `data-connection-action="edit" data-id="${connection.id}"` })}${button('删除', { tone: 'ghost', extra: `data-connection-action="delete" data-id="${connection.id}" aria-label="删除 ${escapeHtml(connection.name)}"` })}</div>
     </article>`).join('')
     root.innerHTML = listPage({
-      toolbar: listToolbar({ searchLabel: '搜索连接', searchPlaceholder: '搜索连接名称或地址', filters, action }),
+      toolbar: listToolbar({ searchLabel: '搜索连接', searchPlaceholder: '搜索连接名称、地址或拓扑', resultLabel: query || topology !== 'all' ? `${filtered.length} 条结果` : `共 ${items.length} 条`, filters, action }),
       summary: items.length ? summary([[String(items.length), '连接'], ['AES-GCM', '凭据保护']]) : '',
-      content: items.length ? (filtered.length ? table(['连接名称 / 地址', '拓扑', '凭据', '最近检查', '操作'], rows, 'connection-table') : emptyState('没有匹配的连接', '请调整搜索或拓扑筛选条件')) : emptyState('暂无 Redis 连接', '先建立源端和目标端连接，再创建同步任务。'),
+      content: items.length ? (filtered.length ? table(['连接名称 / 地址', '拓扑', '凭据', '最近检查', '操作'], rows, 'connection-table', 'Redis 连接列表') : emptyState('没有匹配的连接', '请调整搜索或拓扑筛选条件')) : emptyState('暂无 Redis 连接', '先建立源端和目标端连接，再创建同步任务。'),
     })
-    const search = root.querySelector('#list-search'); search.value = query; search.addEventListener('input', (event) => { query = event.target.value; render() })
+    bindSearch(root, query, (value) => { query = value; render() })
     root.querySelector('#topology-filter').addEventListener('change', (event) => { topology = event.target.value; render() })
     root.querySelector('#refresh-list').addEventListener('click', load)
     root.querySelector('#create-connection').addEventListener('click', () => navigate('/connections/new'))
@@ -118,7 +126,7 @@ export async function mountConnections(root, navigate) {
 }
 
 export async function mountSystem(root) {
-  root.innerHTML = listPage({ toolbar: listToolbar({ searchLabel: '搜索系统信息', searchPlaceholder: '搜索配置项或路径' }), content: skeleton(4) })
+  root.innerHTML = listPage({ toolbar: listToolbar({ searchLabel: '搜索系统信息', searchPlaceholder: '搜索配置项、状态或路径' }), content: skeleton(4) })
   let query = ''
   const load = async () => {
     try {
@@ -134,11 +142,11 @@ export async function mountSystem(root) {
         const filtered = rows.filter((row) => !keyword || row.some((value) => String(value).toLowerCase().includes(keyword)))
         const rowHtml = filtered.map((row) => `<article class="table-row system-row"><div class="identity"><strong>${escapeHtml(row[0])}</strong><small>${escapeHtml(row[1])}</small></div><strong>${escapeHtml(row[2])}</strong><code>${escapeHtml(row[3])}</code></article>`).join('')
         root.innerHTML = listPage({
-          toolbar: listToolbar({ searchLabel: '搜索系统信息', searchPlaceholder: '搜索配置项或路径' }),
+          toolbar: listToolbar({ searchLabel: '搜索系统信息', searchPlaceholder: '搜索配置项、状态或路径', resultLabel: query ? `${filtered.length} 条结果` : `共 ${rows.length} 条` }),
           summary: summary([['Ready', '控制面'], [info.storage, '存储'], [`${info.version} · ${info.git_commit}`, '版本']]),
-          content: filtered.length ? table(['配置项', '状态', '配置值'], rowHtml, 'system-table') : emptyState('没有匹配的系统信息'),
+          content: filtered.length ? table(['配置项', '状态', '配置值'], rowHtml, 'system-table', '系统信息列表') : emptyState('没有匹配的系统信息'),
         }) + `<aside class="info-banner"><strong>部署边界</strong><p>控制面默认监听回环地址。对外提供页面时，请通过带 TLS 和访问控制的反向代理暴露。</p></aside>`
-        const search = root.querySelector('#list-search'); search.value = query; search.addEventListener('input', (event) => { query = event.target.value; render() })
+        bindSearch(root, query, (value) => { query = value; render() })
         root.querySelector('#refresh-list').addEventListener('click', load)
       }
       render()
@@ -317,7 +325,7 @@ export async function mountTaskDetail(root, navigate, id) {
   }
   const detailTab = () => {
     if (tab === 'logs') return `<div class="log-toolbar"><strong>stdout / stderr（已脱敏）</strong>${button('下载', { id: 'download-logs' })}</div><pre class="log-view">${escapeHtml(logs || '等待日志输出…')}</pre>`
-    if (tab === 'history') return runs.length ? table(['状态', '运行 ID', '开始时间', '退出原因'], runs.map((run) => `<article class="table-row history-row">${statusPill(run.state, runStateMeta)}<code>${escapeHtml(run.id)}</code><time>${formatDate(run.started_at)}</time><span>${escapeHtml(run.exit_reason || '—')}</span></article>`).join(''), 'history-table') : emptyState('暂无运行记录')
+    if (tab === 'history') return runs.length ? table(['状态', '运行 ID', '开始时间', '退出原因'], runs.map((run) => `<article class="table-row history-row">${statusPill(run.state, runStateMeta)}<code>${escapeHtml(run.id)}</code><time>${formatDate(run.started_at)}</time><span>${escapeHtml(run.exit_reason || '—')}</span></article>`).join(''), 'history-table', '运行历史列表') : emptyState('暂无运行记录')
     if (tab === 'config') return `<div class="config-note">配置快照不包含密码或 TLS PEM。</div><pre class="json-view">${escapeHtml(JSON.stringify(selectedRun?.config_snapshot || task.spec, null, 2))}</pre>`
     return `<div class="overview-grid"><main><div class="section-title"><h3>RedisShake 状态</h3><span>来自 worker 状态端口</span></div><div class="status-grid"><div><small>阶段</small><strong>${escapeHtml(String(selectedRun?.status?.reader?.status || selectedRun?.state || '—'))}</strong></div><div><small>内部一致</small><strong>${selectedRun?.status?.consistent === undefined ? '—' : selectedRun.status.consistent ? '是' : '否'}</strong></div><div><small>最后心跳</small><strong>${formatDate(selectedRun?.last_heartbeat_at)}</strong></div></div><pre class="json-view">${escapeHtml(JSON.stringify({ reader: selectedRun?.status?.reader, writer: selectedRun?.status?.writer }, null, 2))}</pre></main><aside class="run-list"><div class="section-title"><h3>运行记录</h3><span>${runs.length}</span></div>${runs.map((run) => `<button data-run-id="${run.id}" class="${run.id === selectedRun?.id ? 'active' : ''}">${statusPill(run.state, runStateMeta)}<strong>${formatDate(run.started_at)}</strong><small>${escapeHtml(run.id.slice(0, 10))}</small></button>`).join('') || '<p>尚未运行</p>'}</aside></div>`
   }
