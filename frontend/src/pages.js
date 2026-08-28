@@ -139,26 +139,22 @@ export async function mountConnectionEditor(root, navigate) {
     const saved = (await api.listConnections()).find((item) => item.id === editId)
     if (saved) form = { ...form, ...saved, password: '', tls: { ...form.tls, ...saved.tls }, sentinel: { ...form.sentinel, ...saved.sentinel, password: '', tls: { ...form.sentinel.tls, ...saved.sentinel.tls } } }
   }
+  const standaloneDefaults = defaultConnectionInput()
+  form.topology = 'standalone'
+  form.sentinel = standaloneDefaults.sentinel
+  form.tls = standaloneDefaults.tls
   let purpose = 'source'
   let result
   const render = () => {
-    const sentinel = form.topology === 'sentinel'
-    root.innerHTML = `<div class="editor-page"><button id="back-connections" class="back-link">${icon('back', 16)}返回连接管理</button>
-      ${pageHeader(editId ? '编辑 Redis 连接' : '新建 Redis 连接', '配置 Redis 拓扑、访问凭据和 TLS，并在保存前完成真实连接测试。', `${button('取消', { id: 'cancel-connection' })}${button(editId ? '保存修改' : '保存连接', { id: 'save-connection', tone: 'primary' })}`)}
-      <div class="editor-layout"><main class="editor-surface">
+    root.innerHTML = `<div class="editor-page"><div class="editor-layout"><main class="editor-surface">
         <section class="form-section"><header><span>01</span><div><h3>基础连接</h3><p>RedisShake 用这些信息访问真实数据节点</p></div></header>
-          <div class="form-grid two">${field('连接名称', input('connection-name', '连接名称', form.name, { placeholder: '例如：生产源端' }))}${field('拓扑类型', select('connection-topology', '拓扑类型', form.topology, [['standalone', '单机 / 主从'], ['sentinel', 'Sentinel'], ['cluster', 'Cluster']]))}</div>
-          ${sentinel ? `<div class="form-grid two">${field('Sentinel 地址', input('sentinel-address', 'Sentinel 地址', form.sentinel.address, { placeholder: 'host:26379' }))}${field('Master name', input('sentinel-master', 'Master name', form.sentinel.master_name, { placeholder: 'mymaster' }))}</div>` : field('Redis 地址', input('connection-address', 'Redis 地址', form.address, { placeholder: 'host:port' }))}
+          <div class="form-grid two">${field('连接名称', input('connection-name', '连接名称', form.name, { placeholder: '例如：生产源端' }))}${field('Redis 地址', input('connection-address', 'Redis 地址', form.address, { placeholder: 'host:port' }))}</div>
           <div class="form-grid two">${field('Redis 用户名', input('connection-username', 'Redis 用户名', form.username, { placeholder: '未启用 ACL 可留空' }))}${field('Redis 密码', input('connection-password', 'Redis 密码', form.password, { type: 'password', placeholder: '未设置密码可留空' }))}</div>
         </section>
-        <section class="form-section"><header><span>02</span><div><h3>TLS 与证书</h3><p>默认校验证书，证书材料只会加密保存</p></div></header>
-          <label class="switch-row"><div><strong>启用 Redis TLS</strong><small>适用于 rediss:// 或受保护的内部链路</small></div><input id="tls-enabled" type="checkbox" ${form.tls.enabled ? 'checked' : ''}></label>
-          ${form.tls.enabled ? `<div class="form-grid two">${field('Server name', input('tls-server-name', 'Server name', form.tls.server_name, { placeholder: 'redis.internal' }))}<label class="switch-row compact"><span>跳过证书校验</span><input id="tls-insecure" type="checkbox" ${form.tls.insecure_skip_verify ? 'checked' : ''}></label></div><details><summary>证书材料（可选）</summary>${field('CA certificate PEM', textarea('tls-ca', 'CA certificate PEM', form.tls.ca_cert_pem, '', 3))}<div class="form-grid two">${field('Client certificate PEM', textarea('tls-cert', 'Client certificate PEM', form.tls.client_cert_pem, '', 3))}${field('Client private key PEM', textarea('tls-key', 'Client private key PEM', form.tls.client_key_pem, '', 3))}</div></details>` : ''}
-        </section>
-      </main><aside class="editor-aside"><div class="aside-card"><span class="eyebrow">连接检查</span><h3>保存前验证</h3><p>源端检查只读；目标写检查会创建带 TTL 的临时 Key 并立即删除。</p>${segmented('test-purpose', purpose, [['source', '源端检查'], ['target', '目标写检查']])}${button('测试连接', { id: 'test-connection', tone: 'primary' })}${result ? checkPanel(result.checks) : ''}</div></aside></div></div>`
-    bindConnectionForm(root, form, () => render())
+      </main><aside class="editor-aside"><div class="aside-card"><span class="eyebrow">连接检查</span><h3>保存前验证</h3><p>源端检查只读；目标写检查会创建带 TTL 的临时 Key 并立即删除。</p>${segmented('test-purpose', purpose, [['source', '源端检查'], ['target', '目标写检查']])}${button('测试连接', { id: 'test-connection', tone: 'primary' })}${result ? checkPanel(result.checks) : ''}</div></aside></div>
+      <div class="editor-footer">${button('取消', { id: 'cancel-connection' })}${button(editId ? '保存修改' : '保存连接', { id: 'save-connection', tone: 'primary' })}</div></div>`
     bindSegments(root, (_name, value) => { readConnectionForm(root, form); purpose = value; render() })
-    root.querySelector('#back-connections').onclick = root.querySelector('#cancel-connection').onclick = () => navigate('/connections')
+    root.querySelector('#cancel-connection').onclick = () => navigate('/connections')
     root.querySelector('#test-connection').onclick = async (event) => {
       try { readConnectionForm(root, form); validateConnection(form); setBusy(event.currentTarget, true, '测试中'); result = await api.testConnection(clone(form), purpose); toast(result.success ? '连接测试通过' : '连接测试存在阻断项', result.success ? 'success' : 'warning'); render() }
       catch (error) { toast(error.message, 'danger'); setBusy(event.currentTarget, false) }
@@ -171,25 +167,15 @@ export async function mountConnectionEditor(root, navigate) {
   render()
 }
 
-function bindConnectionForm(root, form, rerender) {
-  root.querySelector('#connection-topology').onchange = (event) => { readConnectionForm(root, form); form.topology = event.target.value; rerender() }
-  root.querySelector('#tls-enabled').onchange = (event) => { readConnectionForm(root, form); form.tls.enabled = event.target.checked; rerender() }
-}
-
 function readConnectionForm(root, form) {
   const value = (id, fallback = '') => root.querySelector(`#${id}`)?.value ?? fallback
-  form.name = value('connection-name', form.name); form.topology = value('connection-topology', form.topology); form.address = value('connection-address', form.address)
+  form.name = value('connection-name', form.name); form.topology = 'standalone'; form.address = value('connection-address', form.address)
   form.username = value('connection-username', form.username); form.password = value('connection-password', form.password)
-  form.sentinel.address = value('sentinel-address', form.sentinel.address); form.sentinel.master_name = value('sentinel-master', form.sentinel.master_name)
-  form.tls.enabled = root.querySelector('#tls-enabled')?.checked ?? form.tls.enabled; form.tls.server_name = value('tls-server-name', form.tls.server_name)
-  form.tls.insecure_skip_verify = root.querySelector('#tls-insecure')?.checked ?? form.tls.insecure_skip_verify
-  form.tls.ca_cert_pem = value('tls-ca', form.tls.ca_cert_pem); form.tls.client_cert_pem = value('tls-cert', form.tls.client_cert_pem); form.tls.client_key_pem = value('tls-key', form.tls.client_key_pem)
 }
 
 function validateConnection(form) {
   if (!form.name.trim()) throw new Error('请输入连接名称')
-  if (form.topology === 'sentinel') { if (!form.sentinel.address.trim()) throw new Error('请输入 Sentinel 地址'); if (!form.sentinel.master_name.trim()) throw new Error('请输入 Master name') }
-  else if (!form.address.trim()) throw new Error('请输入 Redis 地址')
+  if (!form.address.trim()) throw new Error('请输入 Redis 地址')
 }
 
 export async function mountTaskEditor(root, navigate, taskId = '') {
