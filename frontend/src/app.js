@@ -1,6 +1,6 @@
 import { escapeHtml } from './lib.js'
 import { icon, initSearches, initSelects } from './components.js'
-import { mountConnectionEditor, mountConnections, mountSystem, mountTaskDetail, mountTaskEditor, mountTasks } from './pages.js'
+import { mountConnectionEditor, mountConnections, mountTaskDetail, mountTaskEditor, mountTasks } from './pages.js'
 
 const app = document.querySelector('#app')
 let cleanup
@@ -12,7 +12,6 @@ const routes = [
   [/^\/tasks\/([^/]+)$/, ['同步任务', '任务详情'], (root, match) => mountTaskDetail(root, navigate, match[1])],
   [/^\/connections\/new$/, ['连接管理', '新建连接'], (root) => mountConnectionEditor(root, navigate)],
   [/^\/connections$/, ['', '连接管理'], (root) => mountConnections(root, navigate)],
-  [/^\/system$/, ['', '系统信息'], (root) => mountSystem(root)],
   [/^\/tasks$/, ['', '同步任务'], (root) => mountTasks(root, navigate)],
 ]
 
@@ -36,10 +35,10 @@ function themeToggle() {
 }
 
 function shell(context) {
-  const active = location.pathname.startsWith('/connections') ? 'connections' : location.pathname.startsWith('/system') ? 'system' : 'tasks'
+  const active = location.pathname.startsWith('/connections') ? 'connections' : 'tasks'
   return `<div class="app-shell">
     <aside class="sidebar" id="sidebar"><a href="/tasks" data-link class="brand"><strong>RedisShake Web</strong></a>
-      <nav aria-label="主导航"><a href="/tasks" data-link class="${active === 'tasks' ? 'active' : ''}"><span>同步任务</span></a><a href="/connections" data-link class="${active === 'connections' ? 'active' : ''}"><span>连接管理</span></a><a href="/system" data-link class="${active === 'system' ? 'active' : ''}"><span>系统信息</span></a></nav>
+      <nav aria-label="主导航"><a href="/tasks" data-link class="${active === 'tasks' ? 'active' : ''}"><span>同步任务</span></a><a href="/connections" data-link class="${active === 'connections' ? 'active' : ''}"><span>连接管理</span></a></nav>
       <div class="sidebar-status"><i></i><span>Ready</span></div>
     </aside>
     <section class="workspace"><header class="topbar"><div class="mobile-brand">RedisShake Web</div><div class="page-context">${context[0] ? `<span>${escapeHtml(context[0])}</span><i>/</i>` : ''}<h1>${escapeHtml(context[1])}</h1></div><div class="topbar-tools">${themeToggle()}<span class="ready-dot"><i></i>Ready</span><button id="mobile-menu" aria-label="打开侧边栏">${icon('menu', 20)}</button></div></header><main id="page-root"></main></section>

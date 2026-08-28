@@ -132,35 +132,6 @@ export async function mountConnections(root, navigate) {
   await load()
 }
 
-export async function mountSystem(root) {
-  root.innerHTML = listPage({ toolbar: '', content: skeleton(4) })
-  let page = 1
-  const load = async () => {
-    try {
-      const info = await api.systemInfo()
-      const rows = [
-        ['元数据存储', '控制面元数据', info.storage, info.data_dir], ['运行目录', 'Task / Run artifacts', '已配置', info.runtime_dir],
-        ['RedisShake Worker', '每个 Run 使用独立进程', '可执行', info.worker_path], ['凭据保护', info.secrets_configured ? '主密钥已配置' : '主密钥未配置', info.secrets_configured ? '可用' : '受限', info.secrets_configured ? '可加密保存连接凭据' : '仅支持无密码连接'],
-        ['Web 控制台', '原生静态资源已内嵌', info.web_ui_configured ? '可用' : 'API only', info.web_ui_configured ? 'Go embed.FS' : '仅提供控制面 API'],
-        ['运行约束', `最多 ${info.max_concurrent_runs} 个活动 Run`, '已生效', `日志保留 ${info.log_retention_days === 0 ? '不限期' : `${info.log_retention_days} 天`}`],
-      ]
-      const render = () => {
-        page = Math.min(page, Math.max(1, Math.ceil(rows.length / LIST_PAGE_SIZE)))
-        const visibleRows = rows.slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
-        const rowHtml = visibleRows.map((row) => `<article class="table-row system-row"><div class="identity"><strong>${escapeHtml(row[0])}</strong><small>${escapeHtml(row[1])}</small></div><strong>${escapeHtml(row[2])}</strong><code>${escapeHtml(row[3])}</code></article>`).join('')
-        root.innerHTML = listPage({
-          toolbar: '',
-          content: table(['配置项', '状态', '配置值'], rowHtml, 'system-table', '系统信息列表'),
-          pagination: pagination(rows.length, page, LIST_PAGE_SIZE),
-        })
-        bindPagination(root, (value) => { page = value; render() })
-      }
-      render()
-    } catch (error) { root.innerHTML = inlineError(error.message); root.querySelector('#retry-page')?.addEventListener('click', load) }
-  }
-  await load()
-}
-
 export async function mountConnectionEditor(root, navigate) {
   const editId = new URLSearchParams(location.search).get('edit')
   let form = defaultConnectionInput()

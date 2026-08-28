@@ -119,7 +119,7 @@ func TestConnectionCredentialRequiresMasterKey(t *testing.T) {
 	config := cpconfig.Config{DataDir: root, RuntimeDir: filepath.Join(root, "runtime")}
 	service := connections.NewService(database, nil, nil)
 	taskService := tasks.NewService(database, service, &taskconfig.Renderer{}, config.RuntimeDir)
-	handler := NewServer(database, config, BuildInfo{}, service, taskService, nil).Handler()
+	handler := NewServer(database, config, service, taskService, nil).Handler()
 
 	response := performJSONRequest(t, handler, http.MethodPost, "/api/v1/connections", `{
 		"name":"Protected",

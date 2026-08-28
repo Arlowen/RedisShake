@@ -70,10 +70,7 @@ func run() error {
 		log.Printf("marked %d unowned RedisShake runs as UNKNOWN", recovered)
 	}
 
-	apiServer := api.NewServer(database, config, api.BuildInfo{
-		Version:   Version,
-		GitCommit: GitCommit,
-	}, connectionService, taskService, engineManager)
+	apiServer := api.NewServer(database, config, connectionService, taskService, engineManager)
 	httpServer := &http.Server{
 		Addr:              config.ListenAddress,
 		Handler:           apiServer.Handler(),

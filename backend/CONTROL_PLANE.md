@@ -11,7 +11,7 @@ The current implementation provides:
 - AES-256-GCM encryption helpers for connection credentials;
 - log and error redaction helpers;
 - Task and Run state-transition validation;
-- `/healthz`, `/readyz`, and `/api/v1/system/info` endpoints;
+- `/healthz` and `/readyz` endpoints;
 - encrypted Redis connection CRUD for standalone, Sentinel, and cluster topologies;
 - saved and unsaved connection tests with ACL, TLS, topology, and server metadata checks;
 - target write-permission tests using a random temporary Key with a 60-second TTL and best-effort deletion;
@@ -74,7 +74,6 @@ Then query:
 ```shell
 curl http://127.0.0.1:8080/healthz
 curl http://127.0.0.1:8080/readyz
-curl http://127.0.0.1:8080/api/v1/system/info
 ```
 
 The server can start without a master key while no encrypted credentials exist.

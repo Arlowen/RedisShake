@@ -27,7 +27,6 @@ async function request(path, init = {}) {
 }
 
 export const api = {
-  systemInfo: () => request('/api/v1/system/info'),
   listConnections: async () => (await request('/api/v1/connections')).items,
   createConnection: (input) => request('/api/v1/connections', { method: 'POST', body: JSON.stringify(input) }),
   updateConnection: (id, patch) => request(`/api/v1/connections/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),

@@ -40,7 +40,7 @@ func TestSPAHandlerServesAssetsAndPreservesAPINotFound(t *testing.T) {
 	connectionService := connections.NewService(database, cipher, nil)
 	config := cpconfig.Config{DataDir: root, RuntimeDir: filepath.Join(root, "runtime"), WebDir: webDir}
 	taskService := tasks.NewService(database, connectionService, &taskconfig.Renderer{}, config.RuntimeDir)
-	handler := NewServer(database, config, BuildInfo{}, connectionService, taskService, nil).Handler()
+	handler := NewServer(database, config, connectionService, taskService, nil).Handler()
 
 	for _, path := range []string{"/", "/tasks/task-1"} {
 		response := httptest.NewRecorder()

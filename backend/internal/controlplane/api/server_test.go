@@ -3,7 +3,6 @@ package api
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -19,8 +18,8 @@ import (
 	"RedisShake/internal/controlplane/webassets"
 )
 
-func TestHealthReadyAndSystemInfo(t *testing.T) {
-	database, config, handler := newTestServer(t)
+func TestHealthAndReady(t *testing.T) {
+	database, _, handler := newTestServer(t)
 	defer database.Close()
 
 	for _, path := range []string{"/healthz", "/readyz"} {
@@ -35,37 +34,17 @@ func TestHealthReadyAndSystemInfo(t *testing.T) {
 		}
 	}
 
+}
+
+func TestSystemInfoEndpointIsRemoved(t *testing.T) {
+	database, _, handler := newTestServer(t)
+	defer database.Close()
+
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/system/info", nil)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatalf("GET system info status = %d", response.Code)
-	}
-	var payload map[string]any
-	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
-		t.Fatalf("decode system info: %v", err)
-	}
-	if payload["version"] != "test-version" || payload["storage"] != "sqlite" {
-		t.Fatalf("system info = %#v", payload)
-	}
-	if payload["data_dir"] != config.DataDir || payload["runtime_dir"] != config.RuntimeDir {
-		t.Fatalf("system info paths = %#v", payload)
-	}
-	if payload["worker_path"] != config.WorkerPath {
-		t.Fatalf("worker_path = %#v", payload["worker_path"])
-	}
-	_, embeddedWebAvailable := webassets.FileSystem()
-	if payload["web_ui_configured"] != embeddedWebAvailable {
-		t.Fatalf("web_ui_configured = %#v, want %t", payload["web_ui_configured"], embeddedWebAvailable)
-	}
-	if payload["max_concurrent_runs"] != float64(config.MaxConcurrentRuns) || payload["log_retention_days"] != float64(config.LogRetentionDays) {
-		t.Fatalf("run settings = %#v/%#v", payload["max_concurrent_runs"], payload["log_retention_days"])
-	}
-	if payload["secrets_configured"] != true {
-		t.Fatalf("secrets_configured = %#v", payload["secrets_configured"])
-	}
-	if bytes.Contains(response.Body.Bytes(), config.MasterKey) {
-		t.Fatal("system info response leaked the master key")
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("GET removed system info status = %d, body = %s", response.Code, response.Body.String())
 	}
 }
 
@@ -132,6 +111,6 @@ func newTestServer(t *testing.T, checkers ...connections.Checker) (*store.Store,
 	}
 	connectionService := connections.NewService(database, cipher, checker)
 	taskService := tasks.NewService(database, connectionService, &taskconfig.Renderer{}, config.RuntimeDir)
-	server := NewServer(database, config, BuildInfo{Version: "test-version", GitCommit: "abc123"}, connectionService, taskService, nil)
+	server := NewServer(database, config, connectionService, taskService, nil)
 	return database, config, server.Handler()
 }

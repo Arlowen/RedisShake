@@ -16,15 +16,9 @@ import (
 	"RedisShake/internal/controlplane/webassets"
 )
 
-type BuildInfo struct {
-	Version   string
-	GitCommit string
-}
-
 type Server struct {
 	store       *store.Store
 	config      cpconfig.Config
-	buildInfo   BuildInfo
 	connections *connections.Service
 	tasks       *tasks.Service
 	engine      *engine.Manager
@@ -33,11 +27,10 @@ type Server struct {
 	handler     http.Handler
 }
 
-func NewServer(database *store.Store, config cpconfig.Config, buildInfo BuildInfo, connectionService *connections.Service, taskService *tasks.Service, engineManager *engine.Manager) *Server {
+func NewServer(database *store.Store, config cpconfig.Config, connectionService *connections.Service, taskService *tasks.Service, engineManager *engine.Manager) *Server {
 	server := &Server{
 		store:       database,
 		config:      config,
-		buildInfo:   buildInfo,
 		connections: connectionService,
 		tasks:       taskService,
 		engine:      engineManager,
@@ -60,7 +53,6 @@ func (s *Server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /readyz", s.handleReady)
-	mux.HandleFunc("GET /api/v1/system/info", s.handleSystemInfo)
 	mux.HandleFunc("GET /api/v1/connections", s.handleListConnections)
 	mux.HandleFunc("POST /api/v1/connections", s.handleCreateConnection)
 	mux.HandleFunc("GET /api/v1/connections/{id}", s.handleGetConnection)
@@ -104,21 +96,6 @@ func (s *Server) handleReady(w http.ResponseWriter, request *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status":   "ready",
 		"database": "ok",
-	})
-}
-
-func (s *Server) handleSystemInfo(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
-		"version":             s.buildInfo.Version,
-		"git_commit":          s.buildInfo.GitCommit,
-		"storage":             "sqlite",
-		"data_dir":            s.config.DataDir,
-		"runtime_dir":         s.config.RuntimeDir,
-		"secrets_configured":  s.config.SecretsConfigured(),
-		"worker_path":         s.config.WorkerPath,
-		"web_ui_configured":   s.webFS != nil,
-		"max_concurrent_runs": s.config.MaxConcurrentRuns,
-		"log_retention_days":  s.config.LogRetentionDays,
 	})
 }
 
