@@ -31,7 +31,7 @@ function applyTheme() {
 }
 
 function themeToggle() {
-  const options = [['system', '跟随系统', 'monitor'], ['light', '浅色模式', 'sun'], ['dark', '深色模式', 'moon']]
+  const options = [['light', '浅色模式', 'sun'], ['system', '跟随系统', 'monitor'], ['dark', '深色模式', 'moon']]
   return `<div class="theme-toggle" role="group" aria-label="外观设置">${options.map(([value, label, iconName]) => `<button type="button" class="${themePreference === value ? 'active' : ''}" data-theme-option="${value}" aria-label="${label}" aria-pressed="${themePreference === value}" title="${label}">${icon(iconName, 16)}</button>`).join('')}</div>`
 }
 
