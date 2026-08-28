@@ -154,12 +154,13 @@ export async function mountSystem(root) {
         page = Math.min(page, Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE)))
         const visibleRows = filtered.slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
         const rowHtml = visibleRows.map((row) => `<article class="table-row system-row"><div class="identity"><strong>${escapeHtml(row[0])}</strong><small>${escapeHtml(row[1])}</small></div><strong>${escapeHtml(row[2])}</strong><code>${escapeHtml(row[3])}</code></article>`).join('')
+        const deploymentBoundary = `<aside class="info-banner"><strong>部署边界</strong><p>控制面默认监听回环地址。对外提供页面时，请通过带 TLS 和访问控制的反向代理暴露。</p></aside>`
         root.innerHTML = listPage({
           toolbar: listToolbar({ searchLabel: '搜索系统信息', searchPlaceholder: '搜索配置项、状态或路径' }),
           summary: summary([['Ready', '控制面'], [info.storage, '存储'], [`${info.version} · ${info.git_commit}`, '版本']]),
-          content: filtered.length ? table(['配置项', '状态', '配置值'], rowHtml, 'system-table', '系统信息列表') : emptyState('没有匹配的系统信息'),
+          content: `${filtered.length ? table(['配置项', '状态', '配置值'], rowHtml, 'system-table', '系统信息列表') : emptyState('没有匹配的系统信息')}${deploymentBoundary}`,
           pagination: pagination(filtered.length, page, LIST_PAGE_SIZE),
-        }) + `<aside class="info-banner"><strong>部署边界</strong><p>控制面默认监听回环地址。对外提供页面时，请通过带 TLS 和访问控制的反向代理暴露。</p></aside>`
+        })
         bindSearch(root, query, (value) => { query = value; page = 1; render() })
         bindPagination(root, (value) => { page = value; render() })
         root.querySelector('#refresh-list').addEventListener('click', load)
