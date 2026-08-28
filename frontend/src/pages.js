@@ -21,7 +21,6 @@ export async function mountTasks(root, navigate) {
   let connections = []
   let latestRuns = {}
   let query = ''
-  let state = 'all'
   let sort = 'updated'
   let page = 1
   root.innerHTML = listPage({ toolbar: listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称、连接或状态' }), content: skeleton(5) })
@@ -40,12 +39,11 @@ export async function mountTasks(root, navigate) {
     const filtered = tasks.filter((task) => {
       const run = latestRuns[task.id]
       const searchable = [task.spec.name, names[task.spec.source_connection_id], names[task.spec.target_connection_id], modeLabel[task.spec.mode], taskStateMeta[task.state]?.[0], runStateMeta[run?.state]?.[0]].filter(Boolean).join(' ').toLowerCase()
-      return (!keyword || searchable.includes(keyword)) && (state === 'all' || task.state === state)
+      return !keyword || searchable.includes(keyword)
     })
       .sort((a, b) => sort === 'name' ? a.spec.name.localeCompare(b.spec.name) : sort === 'state' ? a.state.localeCompare(b.state) : b.updated_at.localeCompare(a.updated_at))
     page = Math.min(page, Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE)))
     const visibleTasks = filtered.slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
-    const filters = segmented('task-state', state, [['all', '全部'], ['DRAFT', '草稿'], ['READY', '可启动']])
     const sortControl = select('task-sort', '任务排序', sort, [['updated', '最近更新'], ['name', '任务名称'], ['state', '任务状态']])
     const action = button('创建任务', { id: 'create-task', tone: 'primary', iconName: 'plus' })
     const rows = visibleTasks.map((task) => {
@@ -62,15 +60,14 @@ export async function mountTasks(root, navigate) {
     const running = Object.values(latestRuns).filter(isActive).length
     const ready = tasks.filter((task) => task.state === 'READY').length
     root.innerHTML = listPage({
-      toolbar: listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称、连接或状态', filters, sort: sortControl, action }),
+      toolbar: listToolbar({ searchLabel: '搜索任务', searchPlaceholder: '搜索任务名称、连接或状态', sort: sortControl, action }),
       summary: tasks.length ? summary([[String(tasks.length), '任务'], [String(running), '运行中'], [String(ready), '可启动']]) : '',
-      content: tasks.length ? (filtered.length ? table(['任务名称', '同步链路', '状态', '最近更新', '操作'], rows, 'task-table', '同步任务列表') : emptyState('没有匹配的任务', '请调整搜索或筛选条件')) : emptyState('暂无同步任务', '创建任务后，可在这里查看运行状态与迁移进度。'),
+      content: tasks.length ? (filtered.length ? table(['任务名称', '同步链路', '状态', '最近更新', '操作'], rows, 'task-table', '同步任务列表') : emptyState('没有匹配的任务', '请调整搜索条件')) : emptyState('暂无同步任务', '创建任务后，可在这里查看运行状态与迁移进度。'),
       pagination: pagination(filtered.length, page, LIST_PAGE_SIZE),
     })
     bindSearch(root, query, (value) => { query = value; page = 1; render() })
     bindPagination(root, (value) => { page = value; render() })
     root.querySelector('#task-sort').addEventListener('change', (event) => { sort = event.target.value; page = 1; render() })
-    bindSegments(root, (_name, value) => { state = value; page = 1; render() })
     root.querySelector('#refresh-list').addEventListener('click', load)
     root.querySelector('#create-task').addEventListener('click', () => navigate('/tasks/new'))
     root.querySelectorAll('[data-action]').forEach((control) => control.addEventListener('click', async () => {
